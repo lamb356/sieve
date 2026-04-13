@@ -4,7 +4,7 @@ use std::process::Command;
 use tempfile::tempdir;
 
 fn sieve_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_sieve-cli")
+    env!("CARGO_BIN_EXE_sieve")
 }
 
 #[test]

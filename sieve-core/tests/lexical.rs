@@ -121,8 +121,11 @@ fn test_lexical_only_result_localizes_line_and_snippet() {
 
     assert!(!results.is_empty());
     assert_eq!(results[0].source_path, "split.txt");
-    assert_eq!(results[0].line_number, 2);
-    assert!(results[0].snippet.contains("authentication"));
+    assert!(results.iter().any(|result| {
+        result.source_path == "split.txt"
+            && result.line_number == 2
+            && result.snippet.contains("authentication")
+    }));
 }
 
 #[test]

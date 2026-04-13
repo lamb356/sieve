@@ -308,40 +308,42 @@ impl Index {
                 let mut result_sets = result_sets;
 
                 #[cfg(feature = "semantic")]
-                if let Some(embedder) = self.load_embedder()? {
-                    let query_vec = embedder.embed_query(query)?;
-                    let mut embedded_set = roaring::RoaringTreemap::new();
-                    if self.root.join("vectors").exists() {
-                        let store = HotVectorStore::open_or_create(
-                            &self.root.join("vectors"),
-                            embedder.dimension(),
-                        )?;
-                        embedded_set = store.embedded_set().clone();
-                        let vector_matches = filter_vector_matches(
-                            store.search_knn(&query_vec, top_k)?,
-                            &active_ids,
-                        );
-                        if !vector_matches.is_empty() {
-                            result_sets.push(vector_matches_to_scored(vector_matches));
+                if should_use_semantic(query) {
+                    if let Some(embedder) = self.load_embedder()? {
+                        let query_vec = embedder.embed_query(query)?;
+                        let mut embedded_set = roaring::RoaringTreemap::new();
+                        if self.root.join("vectors").exists() {
+                            let store = HotVectorStore::open_or_create(
+                                &self.root.join("vectors"),
+                                embedder.dimension(),
+                            )?;
+                            embedded_set = store.embedded_set().clone();
+                            let vector_matches = filter_vector_matches(
+                                store.search_knn(&query_vec, top_k)?,
+                                &active_ids,
+                            );
+                            if !vector_matches.is_empty() {
+                                result_sets.push(vector_matches_to_scored(vector_matches));
+                            }
                         }
-                    }
-                    let delta_entries: Vec<WalMetaRecord> = active_metadata
-                        .iter()
-                        .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
-                        .cloned()
-                        .collect();
-                    if !delta_entries.is_empty() && delta_entries.len() <= 50 {
-                        let texts: Result<Vec<String>> = delta_entries
+                        let delta_entries: Vec<WalMetaRecord> = active_metadata
                             .iter()
-                            .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                            .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
+                            .cloned()
                             .collect();
-                        let texts = texts?;
-                        let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-                        let vectors = embedder.embed_batch(&refs)?;
-                        let delta =
-                            score_delta_vectors(&query_vec, &delta_entries, &vectors, top_k);
-                        if !delta.is_empty() {
-                            result_sets.push(delta);
+                        if !delta_entries.is_empty() && delta_entries.len() <= 50 {
+                            let texts: Result<Vec<String>> = delta_entries
+                                .iter()
+                                .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                                .collect();
+                            let texts = texts?;
+                            let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+                            let vectors = embedder.embed_batch(&refs)?;
+                            let delta =
+                                score_delta_vectors(&query_vec, &delta_entries, &vectors, top_k);
+                            if !delta.is_empty() {
+                                result_sets.push(delta);
+                            }
                         }
                     }
                 }
@@ -918,6 +920,15 @@ fn ensure_dir(path: &Path) -> Result<bool> {
     }
     fs::create_dir_all(path)?;
     Ok(true)
+}
+
+#[cfg(feature = "semantic")]
+fn should_use_semantic(query: &str) -> bool {
+    if query.chars().any(|ch| !(ch.is_alphanumeric() || ch.is_whitespace())) {
+        return false;
+    }
+    let tokens: Vec<&str> = query.split_whitespace().collect();
+    tokens.len() >= 2 && tokens.iter().any(|token| token.len() > 4)
 }
 
 fn create_file_if_missing(path: &Path) -> Result<bool> {

@@ -3,6 +3,10 @@ name = "sieve-cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "sieve"
+path = "src/main.rs"
+
 [features]
 default = ["semantic"]
 semantic = ["sieve-core/semantic"]
