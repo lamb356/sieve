@@ -1,3 +1,4 @@
+use sieve_core::fusion::ResultSource;
 use sieve_core::lexical::{
     build_pending_shards, load_indexed_entries, search_lexical, LexicalMatch,
 };
@@ -138,5 +139,7 @@ fn test_symbol_query_shows_fallback_tag() {
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].source_path, "symbols.rs");
     assert!(results[0].snippet.contains("foo::bar"));
-    assert_eq!(results[0].source_layer.as_str(), "scan:fallback");
+    assert_eq!(results[0].source_layer, ResultSource::ScanFallback);
+    assert_ne!(results[0].source_layer, ResultSource::RawScan);
+    assert_ne!(results[0].source_layer, ResultSource::LexicalBm25);
 }

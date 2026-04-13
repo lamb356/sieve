@@ -219,13 +219,16 @@ fn parse_query_with_phrase_retry(
         Ok(parsed) => Some(parsed),
         Err(default_err) => {
             debug!(query = %query, error = %default_err, "tantivy default query parse failed; retrying as exact phrase");
-            if !phrase_retry_preserves_query_shape(index, query) {
-                debug!(query = %query, "tantivy phrase retry would lossy-normalize the query; skipping lexical layer");
-                return None;
-            }
             let phrase_query = exact_phrase_query(query);
             match parser.parse_query(&phrase_query) {
-                Ok(parsed) => Some(parsed),
+                Ok(parsed) => {
+                    if phrase_retry_preserves_query_shape(index, query) {
+                        Some(parsed)
+                    } else {
+                        debug!(query = %query, phrase_query = %phrase_query, "tantivy exact phrase retry normalized away symbol boundaries; skipping lexical layer");
+                        None
+                    }
+                }
                 Err(phrase_err) => {
                     debug!(query = %query, phrase_query = %phrase_query, error = %phrase_err, "tantivy exact phrase retry failed; skipping lexical layer");
                     None

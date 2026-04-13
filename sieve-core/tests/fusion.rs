@@ -8,7 +8,7 @@ fn test_rrf_fusion() {
             line_range: (1, 1),
             snippet: "alpha".into(),
             score: 1.0,
-            source_layer: ResultSource::Scan,
+            source_layer: ResultSource::RawScan,
             wal_entry_id: 1,
         },
         ScoredResult {
@@ -16,7 +16,7 @@ fn test_rrf_fusion() {
             line_range: (1, 1),
             snippet: "beta".into(),
             score: 1.0,
-            source_layer: ResultSource::Scan,
+            source_layer: ResultSource::RawScan,
             wal_entry_id: 2,
         },
     ];
@@ -27,7 +27,7 @@ fn test_rrf_fusion() {
             line_range: (1, 1),
             snippet: "beta".into(),
             score: 10.0,
-            source_layer: ResultSource::Bm25,
+            source_layer: ResultSource::LexicalBm25,
             wal_entry_id: 2,
         },
         ScoredResult {
@@ -35,7 +35,7 @@ fn test_rrf_fusion() {
             line_range: (1, 1),
             snippet: "gamma".into(),
             score: 9.0,
-            source_layer: ResultSource::Bm25,
+            source_layer: ResultSource::LexicalBm25,
             wal_entry_id: 3,
         },
     ];
@@ -57,7 +57,7 @@ fn test_rrf_dedup() {
                 line_range: (4, 4),
                 snippet: "same".into(),
                 score: 1.0,
-                source_layer: ResultSource::Scan,
+                source_layer: ResultSource::RawScan,
                 wal_entry_id: 9,
             }],
             vec![ScoredResult {
@@ -65,7 +65,7 @@ fn test_rrf_dedup() {
                 line_range: (4, 4),
                 snippet: "same".into(),
                 score: 9.0,
-                source_layer: ResultSource::Bm25,
+                source_layer: ResultSource::LexicalBm25,
                 wal_entry_id: 9,
             }],
         ],

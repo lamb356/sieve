@@ -226,7 +226,7 @@ impl Index {
                 &self.wal_content_path,
                 &active_metadata,
                 &pattern,
-                ResultSource::Scan,
+                ResultSource::RawScan,
             )?,
             QueryKind::ExactPhrase(phrase) => {
                 let (scan, lexical) = join(
@@ -235,7 +235,7 @@ impl Index {
                             &self.wal_content_path,
                             &active_metadata,
                             phrase.as_bytes(),
-                            ResultSource::Scan,
+                            ResultSource::RawScan,
                         )
                     },
                     || search_lexical_with_fallback(&shards_dir, query, top_k),
@@ -255,7 +255,7 @@ impl Index {
                             &self.wal_content_path,
                             &active_metadata,
                             query.as_bytes(),
-                            ResultSource::Scan,
+                            ResultSource::RawScan,
                         )
                     },
                     || search_lexical_with_fallback(&shards_dir, query, top_k),
@@ -485,7 +485,10 @@ fn load_and_recover_metadata_records(path: &Path, content_size: u64) -> Result<V
     Ok(records)
 }
 
-fn load_manifest(path: &Path, _expect_non_empty: bool) -> Result<HashMap<String, SourceManifestEntry>> {
+fn load_manifest(
+    path: &Path,
+    _expect_non_empty: bool,
+) -> Result<HashMap<String, SourceManifestEntry>> {
     let bytes = fs::read(path)?;
     if bytes.is_empty() {
         return Ok(HashMap::new());
@@ -614,7 +617,7 @@ fn scan_regex(
 
 fn tag_scan_results_as_fallback(results: &mut [ScoredResult]) {
     for result in results {
-        if result.source_layer == ResultSource::Scan {
+        if result.source_layer == ResultSource::RawScan {
             result.source_layer = ResultSource::ScanFallback;
         }
     }
@@ -679,7 +682,7 @@ fn lexical_to_scored(matches: Vec<LexicalMatch>) -> Vec<ScoredResult> {
             line_range: entry.line_range,
             snippet: entry.snippet,
             score: entry.bm25_score,
-            source_layer: ResultSource::Bm25,
+            source_layer: ResultSource::LexicalBm25,
             wal_entry_id: entry.wal_entry_id,
         })
         .collect()

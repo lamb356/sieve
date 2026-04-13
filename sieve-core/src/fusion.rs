@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResultSource {
-    Scan,
+    RawScan,
     ScanFallback,
-    Bm25,
+    LexicalBm25,
     Fused,
 }
 
 impl ResultSource {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Scan => "scan",
+            Self::RawScan => "scan",
             Self::ScanFallback => "scan:fallback",
-            Self::Bm25 => "bm25",
+            Self::LexicalBm25 => "bm25",
             Self::Fused => "fused",
         }
     }
