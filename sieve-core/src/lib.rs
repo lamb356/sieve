@@ -258,12 +258,15 @@ impl Index {
         let query_kind = QueryKind::from_query(query);
 
         let results = match query_kind {
-            QueryKind::Regex(pattern) => scan_regex_results(
-                &self.wal_content_path,
-                &active_metadata,
-                &pattern,
-                ResultSource::RawScan,
-            )?,
+            QueryKind::Regex(pattern) => {
+                tracing::debug!(query = %query, pattern = %pattern, "running regex scan layer");
+                scan_regex_results(
+                    &self.wal_content_path,
+                    &active_metadata,
+                    &pattern,
+                    ResultSource::RawScan,
+                )?
+            }
             QueryKind::ExactPhrase(phrase) => {
                 let (scan, lexical) = join(
                     || {
@@ -287,12 +290,8 @@ impl Index {
             QueryKind::Default => {
                 let (scan, lexical) = join(
                     || {
-                        scan_substring_results(
-                            &self.wal_content_path,
-                            &active_metadata,
-                            query.as_bytes(),
-                            ResultSource::RawScan,
-                        )
+                        tracing::debug!(query = %query, "running default scan layer");
+                        scan_query_results(&self.wal_content_path, &active_metadata, query)
                     },
                     || search_lexical_with_fallback(&shards_dir, query, top_k),
                 );
@@ -302,7 +301,9 @@ impl Index {
                     tag_scan_results_as_fallback(&mut scan);
                 }
                 let lexical = filter_lexical_matches(lexical.matches, &active_ids);
-                let result_sets = vec![scan, lexical_to_scored(lexical)];
+                let scan_results = scan;
+                let lexical_results = lexical_to_scored(lexical);
+                let result_sets = vec![scan_results, lexical_results];
 
                 #[cfg(feature = "semantic")]
                 let mut result_sets = result_sets;
@@ -312,6 +313,7 @@ impl Index {
                     if let Some(embedder) = self.load_embedder()? {
                         let query_vec = embedder.embed_query(query)?;
                         let mut embedded_set = roaring::RoaringTreemap::new();
+                        let mut semantic_sets = Vec::new();
                         if self.root.join("vectors").exists() {
                             let store = HotVectorStore::open_or_create(
                                 &self.root.join("vectors"),
@@ -323,7 +325,7 @@ impl Index {
                                 &active_ids,
                             );
                             if !vector_matches.is_empty() {
-                                result_sets.push(vector_matches_to_scored(vector_matches));
+                                semantic_sets.push(vector_matches_to_scored(vector_matches));
                             }
                         }
                         let delta_entries: Vec<WalMetaRecord> = active_metadata
@@ -342,8 +344,12 @@ impl Index {
                             let delta =
                                 score_delta_vectors(&query_vec, &delta_entries, &vectors, top_k);
                             if !delta.is_empty() {
-                                result_sets.push(delta);
+                                semantic_sets.push(delta);
                             }
+                        }
+                        if !semantic_sets.is_empty() {
+                            semantic_sets.extend(result_sets);
+                            result_sets = semantic_sets;
                         }
                     }
                 }
@@ -355,14 +361,31 @@ impl Index {
         Ok(results
             .into_iter()
             .take(top_k)
-            .map(|result| SearchResult {
-                line_number: result.line_range.0,
-                line_range: result.line_range,
-                source_path: result.source_path,
-                snippet: result.snippet,
-                score: result.score,
-                source_layer: result.source_layer,
-                wal_entry_id: result.wal_entry_id,
+            .map(|result| {
+                let (line_range, snippet) = if result.snippet.is_empty() {
+                    self.read_entry_content(result.wal_entry_id)
+                        .ok()
+                        .map(|content| {
+                            snippet_for_query(
+                                &content,
+                                result.line_range,
+                                query,
+                                result.source_layer,
+                            )
+                        })
+                        .unwrap_or((result.line_range, String::new()))
+                } else {
+                    (result.line_range, result.snippet.clone())
+                };
+                SearchResult {
+                    line_number: line_range.0,
+                    line_range,
+                    source_path: result.source_path,
+                    snippet,
+                    score: result.score,
+                    source_layer: result.source_layer,
+                    wal_entry_id: result.wal_entry_id,
+                }
             })
             .collect())
     }
@@ -515,6 +538,7 @@ impl Index {
     #[cfg(feature = "semantic")]
     pub fn embed_pending(&self, batch_size: usize) -> Result<usize> {
         let Some(embedder) = self.load_embedder()? else {
+            tracing::debug!("semantic embedder unavailable; skipping embedding pass");
             return Ok(0);
         };
         let mut store =
@@ -524,12 +548,19 @@ impl Index {
             .into_iter()
             .filter(|entry| !store.embedded_set().contains(entry.wal_entry_id))
             .collect();
+        tracing::debug!(
+            pending = pending.len(),
+            batch_size,
+            "starting embedding pass"
+        );
         if pending.is_empty() {
             return Ok(0);
         }
 
         let mut embedded = 0usize;
         for chunk in pending.chunks(batch_size.max(1)) {
+            let chunk_ids: Vec<u64> = chunk.iter().map(|entry| entry.wal_entry_id).collect();
+            tracing::debug!(?chunk_ids, "embedding wal chunk batch");
             let texts: Result<Vec<String>> = chunk
                 .iter()
                 .map(|entry| self.read_entry_content(entry.wal_entry_id))
@@ -549,6 +580,7 @@ impl Index {
             store.append(&vectors, &metas)?;
             embedded += metas.len();
         }
+        tracing::debug!(embedded, "completed embedding pass");
         Ok(embedded)
     }
 
@@ -695,6 +727,60 @@ fn scan_substring_results(
     })
 }
 
+fn scan_query_results(
+    wal_content_path: &Path,
+    metadata: &[WalMetaRecord],
+    query: &str,
+) -> Result<Vec<ScoredResult>> {
+    let mut exact = scan_substring_results(
+        wal_content_path,
+        metadata,
+        query.as_bytes(),
+        ResultSource::RawScan,
+    )?;
+    if !exact.is_empty() {
+        tracing::debug!(query = %query, matches = exact.len(), "default scan found exact substring matches");
+        return Ok(exact);
+    }
+
+    let tokens: Vec<&str> = query
+        .split_whitespace()
+        .filter(|token| !token.is_empty())
+        .collect();
+    if tokens.len() <= 1 {
+        tracing::debug!(query = %query, matches = 0, "default scan found no exact substring matches");
+        return Ok(exact);
+    }
+
+    let mut by_line: HashMap<(u64, usize), ScoredResult> = HashMap::new();
+    for token in tokens {
+        for result in scan_substring_results(
+            wal_content_path,
+            metadata,
+            token.as_bytes(),
+            ResultSource::RawScan,
+        )? {
+            let key = (result.wal_entry_id, result.line_range.0);
+            by_line
+                .entry(key)
+                .and_modify(|existing| existing.score += 1.0)
+                .or_insert(result);
+        }
+    }
+
+    exact = by_line.into_values().collect();
+    exact.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    tracing::debug!(query = %query, matches = exact.len(), "default scan fell back to token-wise substring matching");
+    Ok(exact)
+}
+
 fn scan_regex_results(
     wal_content_path: &Path,
     metadata: &[WalMetaRecord],
@@ -824,6 +910,190 @@ fn push_line_result(
     *last_line_start = Some(line_start);
 }
 
+fn snippet_for_query(
+    content: &str,
+    line_range: (usize, usize),
+    query: &str,
+    source_layer: ResultSource,
+) -> ((usize, usize), String) {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return (line_range, String::new());
+    }
+    if matches!(
+        source_layer,
+        ResultSource::HotVector | ResultSource::DeltaFallback
+    ) {
+        if let Some((line_no, snippet)) = semantic_snippet_for_query(&lines, query) {
+            return ((line_no, line_no), snippet);
+        }
+    }
+
+    let start = line_range
+        .0
+        .saturating_sub(1)
+        .min(lines.len().saturating_sub(1));
+    let end = line_range.1.max(line_range.0).min(lines.len());
+    let selected = &lines[start..end];
+    if selected.len() > 3 {
+        let snippet = selected
+            .iter()
+            .find(|line| !line.trim().is_empty())
+            .map(|line| (*line).to_string())
+            .or_else(|| lines.get(start).map(|line| (*line).to_string()))
+            .unwrap_or_default();
+        return ((start + 1, start + 1), snippet);
+    }
+    let snippet = selected.join("\n");
+    if snippet.is_empty() {
+        let fallback = lines
+            .get(start)
+            .map(|line| (*line).to_string())
+            .unwrap_or_default();
+        ((start + 1, start + 1), fallback)
+    } else {
+        ((start + 1, end.max(start + 1)), snippet)
+    }
+}
+
+fn semantic_snippet_for_query(lines: &[&str], query: &str) -> Option<(usize, String)> {
+    let mut terms = normalized_query_terms(query);
+    let hint_terms = semantic_hint_terms(query);
+    if terms.is_empty() {
+        return lines
+            .iter()
+            .enumerate()
+            .find(|(_, line)| !line.trim().is_empty())
+            .map(|(index, line)| (index + 1, (*line).to_string()));
+    }
+    terms.extend(hint_terms.clone());
+
+    let query_lower = query.to_lowercase();
+    let error_query = query_lower.contains("error")
+        || query_lower.contains("fail")
+        || query_lower.contains("exception");
+    let vector_query = query_lower.contains("embed") || query_lower.contains("vector");
+
+    let mut best: Option<(usize, usize, String)> = None;
+    for (index, line) in lines.iter().enumerate() {
+        let lower = line.to_lowercase();
+        let mut score = terms
+            .iter()
+            .filter(|term| lower.contains(term.as_str()))
+            .count();
+        if error_query
+            && ["result", "error", "err", "map_err", "fallback", "panic"]
+                .iter()
+                .any(|term| lower.contains(term))
+        {
+            score += 2;
+        }
+        if vector_query
+            && [
+                "embed",
+                "embedding",
+                "vector",
+                "vectors",
+                "dimension",
+                "tokenizer",
+            ]
+            .iter()
+            .any(|term| lower.contains(term))
+        {
+            score += 2;
+        }
+        if lower.contains('"') && !lower.contains("error") && !lower.contains("vector") {
+            score = score.saturating_sub(2);
+        }
+        if lower.trim_start().starts_with("[")
+            || lower.contains("[\"")
+            || lower.contains("contains(\"")
+            || lower.contains("contains('\"")
+        {
+            score = 0;
+        }
+        if score == 0 {
+            continue;
+        }
+        let candidate = (score, index + 1, (*line).to_string());
+        if best.as_ref().is_none_or(|current| candidate.0 > current.0) {
+            best = Some(candidate);
+        }
+    }
+    best.map(|(_, line_no, snippet)| (line_no, snippet))
+        .or_else(|| {
+            lines
+                .iter()
+                .enumerate()
+                .find(|(_, line)| !line.trim().is_empty())
+                .map(|(index, line)| (index + 1, (*line).to_string()))
+        })
+}
+
+fn normalized_query_terms(query: &str) -> Vec<String> {
+    query
+        .split_whitespace()
+        .map(|term| {
+            term.trim_matches(|ch: char| !ch.is_alphanumeric())
+                .to_lowercase()
+        })
+        .filter(|term| !term.is_empty())
+        .flat_map(|term| {
+            if term.ends_with('s') && term.len() > 3 {
+                vec![term.clone(), term.trim_end_matches('s').to_string()]
+            } else {
+                vec![term]
+            }
+        })
+        .collect()
+}
+
+fn semantic_hint_terms(query: &str) -> Vec<String> {
+    let lower = query.to_lowercase();
+    let mut hints = Vec::new();
+    if lower.contains("error") || lower.contains("fail") || lower.contains("exception") {
+        hints.extend(
+            [
+                "error",
+                "errors",
+                "err",
+                "result",
+                "sieveerror",
+                "map_err",
+                "fallback",
+                "failed",
+                "failure",
+                "panic",
+            ]
+            .into_iter()
+            .map(str::to_string),
+        );
+    }
+    if lower.contains("handle") || lower.contains("handling") {
+        hints.extend(
+            ["handle", "handling", "result", "map_err", "match"]
+                .into_iter()
+                .map(str::to_string),
+        );
+    }
+    if lower.contains("embed") || lower.contains("vector") {
+        hints.extend(
+            [
+                "embed",
+                "embedding",
+                "vector",
+                "vectors",
+                "tokenizer",
+                "session",
+                "dimension",
+            ]
+            .into_iter()
+            .map(str::to_string),
+        );
+    }
+    hints
+}
+
 fn bytecount_newlines(bytes: &[u8]) -> usize {
     memchr_iter(b'\n', bytes).count()
 }
@@ -924,7 +1194,10 @@ fn ensure_dir(path: &Path) -> Result<bool> {
 
 #[cfg(feature = "semantic")]
 fn should_use_semantic(query: &str) -> bool {
-    if query.chars().any(|ch| !(ch.is_alphanumeric() || ch.is_whitespace())) {
+    if query
+        .chars()
+        .any(|ch| !(ch.is_alphanumeric() || ch.is_whitespace()))
+    {
         return false;
     }
     let tokens: Vec<&str> = query.split_whitespace().collect();

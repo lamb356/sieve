@@ -52,10 +52,18 @@ enum OutputFormat {
 }
 
 fn main() {
+    init_tracing();
     if let Err(err) = run() {
         eprintln!("error: {err:#}");
         std::process::exit(1);
     }
+}
+
+fn init_tracing() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_writer(std::io::stderr)
+        .try_init();
 }
 
 fn run() -> Result<()> {
@@ -140,10 +148,11 @@ fn run_index(path: &Path) -> Result<()> {
     );
     #[cfg(feature = "semantic")]
     {
-        let embedded = index.embed_pending(32)?;
+        let _embedded = index.embed_pending(32)?;
+        let semantic = index.semantic_status()?;
         println!(
-            "Embedding: {embedded}/{} chunks done",
-            index.wal_entries_count()?
+            "Embedding: {}/{} chunks done",
+            semantic.vectors, semantic.total_chunks
         );
     }
     Ok(())

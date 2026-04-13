@@ -121,24 +121,8 @@ impl Embedder {
         } else if output.ndim() == 3 {
             let mut pooled = Vec::with_capacity(batch);
             for row in 0..batch {
-                let hidden = output.slice(s![row, .., ..]);
-                let mut vector = vec![0.0_f32; hidden.shape()[1]];
-                let mut denom = 0.0_f32;
-                for token_idx in 0..hidden.shape()[0] {
-                    if attention_mask[(row, token_idx)] == 0 {
-                        continue;
-                    }
-                    denom += 1.0;
-                    for dim in 0..hidden.shape()[1] {
-                        vector[dim] += hidden[[token_idx, dim]];
-                    }
-                }
-                if denom > 0.0 {
-                    for value in &mut vector {
-                        *value /= denom;
-                    }
-                }
-                pooled.push(normalize_vector(vector));
+                let cls = output.slice(s![row, 0, ..]);
+                pooled.push(normalize_vector(cls.iter().copied().collect::<Vec<f32>>()));
             }
             pooled
         } else {

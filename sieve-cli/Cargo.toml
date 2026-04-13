@@ -17,6 +17,7 @@ clap = { workspace = true }
 ignore = { workspace = true }
 serde_json = { workspace = true }
 sieve-core = { path = "../sieve-core", default-features = false }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
