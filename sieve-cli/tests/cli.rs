@@ -209,11 +209,14 @@ fn test_status_command() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Index root path:"));
-    assert!(stdout.contains("WAL entries count:"));
-    assert!(stdout.contains("Shard count:"));
-    assert!(stdout.contains("Indexed entries count:"));
-    assert!(stdout.contains("Unindexed entries count:"));
+    assert!(stdout.contains("Index:"));
+    assert!(stdout.contains("WAL entries:"));
+    assert!(stdout.contains("Shards:"));
+    #[cfg(feature = "semantic")]
+    {
+        assert!(stdout.contains("Vectors:"));
+        assert!(stdout.contains("Semantic coverage:"));
+    }
 }
 
 #[test]

@@ -1,5 +1,11 @@
+#[cfg(feature = "semantic")]
+pub mod embed;
 pub mod fusion;
 pub mod lexical;
+#[cfg(feature = "semantic")]
+pub mod model;
+#[cfg(feature = "semantic")]
+pub mod vectors;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -19,6 +25,10 @@ use thiserror::Error;
 
 use crate::fusion::{rrf_fuse, ResultSource, ScoredResult};
 use crate::lexical::{search_lexical_with_fallback, LexicalMatch};
+#[cfg(feature = "semantic")]
+use crate::model::{ModelManager, DEFAULT_MODEL_NAME};
+#[cfg(feature = "semantic")]
+use crate::vectors::{HotVectorStore, VectorMatch, VectorMeta};
 
 const WAL_META_FILE_NAME: &str = "wal.meta";
 const WAL_CONTENT_FILE_NAME: &str = "wal.content";
@@ -68,6 +78,32 @@ pub struct SearchResult {
     pub score: f64,
     pub source_layer: ResultSource,
     pub wal_entry_id: u64,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SemanticStatus {
+    pub model_cached: bool,
+    pub model_dir: PathBuf,
+    pub vectors: usize,
+    pub dimension: usize,
+    pub total_chunks: usize,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchCoverage {
+    pub total_chunks: usize,
+    pub embedded_chunks: usize,
+    pub delta_chunks: usize,
+    pub skipped_due_to_budget: bool,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchOutcome {
+    pub results: Vec<SearchResult>,
+    pub coverage: SearchCoverage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -266,7 +302,51 @@ impl Index {
                     tag_scan_results_as_fallback(&mut scan);
                 }
                 let lexical = filter_lexical_matches(lexical.matches, &active_ids);
-                rrf_fuse(vec![scan, lexical_to_scored(lexical)], 5.0)
+                let result_sets = vec![scan, lexical_to_scored(lexical)];
+
+                #[cfg(feature = "semantic")]
+                let mut result_sets = result_sets;
+
+                #[cfg(feature = "semantic")]
+                if let Some(embedder) = self.load_embedder()? {
+                    let query_vec = embedder.embed_query(query)?;
+                    let mut embedded_set = roaring::RoaringTreemap::new();
+                    if self.root.join("vectors").exists() {
+                        let store = HotVectorStore::open_or_create(
+                            &self.root.join("vectors"),
+                            embedder.dimension(),
+                        )?;
+                        embedded_set = store.embedded_set().clone();
+                        let vector_matches = filter_vector_matches(
+                            store.search_knn(&query_vec, top_k)?,
+                            &active_ids,
+                        );
+                        if !vector_matches.is_empty() {
+                            result_sets.push(vector_matches_to_scored(vector_matches));
+                        }
+                    }
+                    let delta_entries: Vec<WalMetaRecord> = active_metadata
+                        .iter()
+                        .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
+                        .cloned()
+                        .collect();
+                    if !delta_entries.is_empty() && delta_entries.len() <= 50 {
+                        let texts: Result<Vec<String>> = delta_entries
+                            .iter()
+                            .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                            .collect();
+                        let texts = texts?;
+                        let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+                        let vectors = embedder.embed_batch(&refs)?;
+                        let delta =
+                            score_delta_vectors(&query_vec, &delta_entries, &vectors, top_k);
+                        if !delta.is_empty() {
+                            result_sets.push(delta);
+                        }
+                    }
+                }
+
+                rrf_fuse(result_sets, 5.0)
             }
         };
 
@@ -402,6 +482,88 @@ impl Index {
     pub fn active_wal_entry_ids(&self) -> Result<HashSet<u64>> {
         let manifest = self.manifest.read().map_err(|_| SieveError::LockPoisoned)?;
         Ok(manifest.values().map(|entry| entry.wal_entry_id).collect())
+    }
+
+    #[cfg(feature = "semantic")]
+    pub fn semantic_status(&self) -> Result<SemanticStatus> {
+        let total_chunks = self.wal_entries_count()?;
+        let model_manager = self.model_manager();
+        let model_dir = model_manager.model_dir(DEFAULT_MODEL_NAME);
+        let model_cached = model_manager.is_cached(DEFAULT_MODEL_NAME);
+        let vectors = if self.root.join("vectors").exists() {
+            HotVectorStore::open_or_create(&self.root.join("vectors"), 384)?.len()
+        } else {
+            0
+        };
+        Ok(SemanticStatus {
+            model_cached,
+            model_dir,
+            vectors,
+            dimension: 384,
+            total_chunks,
+        })
+    }
+
+    #[cfg(feature = "semantic")]
+    pub fn delta_fallback_over_budget(&self, max_chunks: usize) -> Result<bool> {
+        let status = self.semantic_status()?;
+        Ok(status.total_chunks.saturating_sub(status.vectors) > max_chunks)
+    }
+
+    #[cfg(feature = "semantic")]
+    pub fn embed_pending(&self, batch_size: usize) -> Result<usize> {
+        let Some(embedder) = self.load_embedder()? else {
+            return Ok(0);
+        };
+        let mut store =
+            HotVectorStore::open_or_create(&self.root.join("vectors"), embedder.dimension())?;
+        let pending: Vec<WalMetaRecord> = self
+            .metadata_snapshot()?
+            .into_iter()
+            .filter(|entry| !store.embedded_set().contains(entry.wal_entry_id))
+            .collect();
+        if pending.is_empty() {
+            return Ok(0);
+        }
+
+        let mut embedded = 0usize;
+        for chunk in pending.chunks(batch_size.max(1)) {
+            let texts: Result<Vec<String>> = chunk
+                .iter()
+                .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                .collect();
+            let texts = texts?;
+            let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+            let vectors = embedder.embed_batch(&refs)?;
+            let metas: Vec<VectorMeta> = chunk
+                .iter()
+                .map(|entry| VectorMeta {
+                    wal_entry_id: entry.wal_entry_id,
+                    source_path: entry.source_path.clone(),
+                    line_range: (entry.line_range_start, entry.line_range_end),
+                    chunk_index: 0,
+                })
+                .collect();
+            store.append(&vectors, &metas)?;
+            embedded += metas.len();
+        }
+        Ok(embedded)
+    }
+
+    #[cfg(feature = "semantic")]
+    fn model_manager(&self) -> ModelManager {
+        ModelManager::new(&default_sieve_data_dir())
+    }
+
+    #[cfg(feature = "semantic")]
+    fn load_embedder(&self) -> Result<Option<crate::embed::Embedder>> {
+        let manager = self.model_manager();
+        if !manager.is_cached(DEFAULT_MODEL_NAME) {
+            return Ok(None);
+        }
+        let model_path = manager.ensure_model(DEFAULT_MODEL_NAME)?;
+        let tokenizer_path = manager.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
+        crate::embed::Embedder::load(&model_path, &tokenizer_path).map(Some)
     }
 }
 
@@ -688,6 +850,68 @@ fn lexical_to_scored(matches: Vec<LexicalMatch>) -> Vec<ScoredResult> {
         .collect()
 }
 
+#[cfg(feature = "semantic")]
+fn vector_matches_to_scored(matches: Vec<VectorMatch>) -> Vec<ScoredResult> {
+    matches
+        .into_iter()
+        .map(|entry| ScoredResult {
+            source_path: entry.source_path,
+            line_range: entry.line_range,
+            snippet: String::new(),
+            score: entry.score,
+            source_layer: ResultSource::HotVector,
+            wal_entry_id: entry.wal_entry_id,
+        })
+        .collect()
+}
+
+#[cfg(feature = "semantic")]
+fn filter_vector_matches(matches: Vec<VectorMatch>, active_ids: &HashSet<u64>) -> Vec<VectorMatch> {
+    matches
+        .into_iter()
+        .filter(|entry| active_ids.contains(&entry.wal_entry_id))
+        .collect()
+}
+
+#[cfg(feature = "semantic")]
+fn score_delta_vectors(
+    query_vec: &[f32],
+    entries: &[WalMetaRecord],
+    vectors: &[Vec<f32>],
+    top_k: usize,
+) -> Vec<ScoredResult> {
+    let mut scored: Vec<ScoredResult> = entries
+        .iter()
+        .zip(vectors.iter())
+        .map(|(entry, vector)| ScoredResult {
+            source_path: entry.source_path.clone(),
+            line_range: (entry.line_range_start, entry.line_range_end),
+            snippet: String::new(),
+            score: dot_product(query_vec, vector),
+            source_layer: ResultSource::DeltaFallback,
+            wal_entry_id: entry.wal_entry_id,
+        })
+        .collect();
+    scored.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    if scored.len() > top_k {
+        scored.truncate(top_k);
+    }
+    scored
+}
+
+#[cfg(feature = "semantic")]
+fn dot_product(left: &[f32], right: &[f32]) -> f64 {
+    left.iter()
+        .zip(right.iter())
+        .map(|(left, right)| (*left as f64) * (*right as f64))
+        .sum()
+}
+
 fn ensure_dir(path: &Path) -> Result<bool> {
     if path.exists() {
         return Ok(false);
@@ -732,4 +956,45 @@ fn default_line_end() -> usize {
 
 pub fn blake3_hex(bytes: &[u8]) -> String {
     hash_content(bytes)
+}
+
+#[cfg(feature = "semantic")]
+pub fn default_sieve_data_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".sieve")
+}
+
+#[cfg(all(test, feature = "semantic"))]
+mod semantic_unit_tests {
+    use std::collections::HashSet;
+
+    use super::filter_vector_matches;
+    use crate::vectors::VectorMatch;
+
+    #[test]
+    fn test_filter_vector_matches_excludes_inactive_wal_entries() {
+        let matches = vec![
+            VectorMatch {
+                wal_entry_id: 1,
+                source_path: "active.rs".into(),
+                line_range: (1, 1),
+                chunk_index: 0,
+                score: 0.9,
+            },
+            VectorMatch {
+                wal_entry_id: 2,
+                source_path: "stale.rs".into(),
+                line_range: (2, 2),
+                chunk_index: 0,
+                score: 0.8,
+            },
+        ];
+        let active_ids = HashSet::from([1_u64]);
+        let filtered = filter_vector_matches(matches, &active_ids);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].wal_entry_id, 1);
+        assert_eq!(filtered[0].source_path, "active.rs");
+    }
 }

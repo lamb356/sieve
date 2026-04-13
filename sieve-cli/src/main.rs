@@ -6,7 +6,11 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use ignore::WalkBuilder;
 use serde_json::json;
+#[cfg(feature = "semantic")]
+use sieve_core::default_sieve_data_dir;
 use sieve_core::lexical::{build_pending_shards, load_indexed_entries};
+#[cfg(feature = "semantic")]
+use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME};
 use sieve_core::{blake3_hex, Index, SearchOptions, SearchResult};
 
 #[derive(Debug, Parser)]
@@ -37,6 +41,8 @@ enum Commands {
         #[arg(long)]
         index: Option<PathBuf>,
     },
+    #[cfg(feature = "semantic")]
+    DownloadModel,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
@@ -64,6 +70,8 @@ fn run() -> Result<()> {
             context,
         } => run_search(&query, index.as_deref(), top, format, context),
         Commands::Status { index } => run_status(index.as_deref()),
+        #[cfg(feature = "semantic")]
+        Commands::DownloadModel => run_download_model(),
     }
 }
 
@@ -78,7 +86,6 @@ fn run_index(path: &Path) -> Result<()> {
     let index_root = source_root.join(".sieve");
     let index = Index::open_or_create(&index_root)?;
 
-    let mut indexed_files = 0usize;
     let mut seen_paths = std::collections::HashSet::new();
     for entry in WalkBuilder::new(&source_root)
         .hidden(false)
@@ -119,17 +126,26 @@ fn run_index(path: &Path) -> Result<()> {
         let text = String::from_utf8_lossy(&content).into_owned();
         let wal_entry_id = index.add_text(relative.clone(), text)?;
         index.record_source_entry(relative, mtime_ms, size, blake3_hex(&content), wal_entry_id)?;
-        indexed_files += 1;
     }
 
     index.prune_manifest_to_paths(&seen_paths)?;
     index.save_manifest()?;
     let built_shards = build_pending_shards(&index)?;
 
+    println!("Indexing {}...", source_root.display());
+    println!("WAL: {} chunks", index.wal_entries_count()?);
     println!(
-        "indexed {indexed_files} files into {} ({built_shards} lexical shard batches)",
-        index_root.display()
+        "Shards: {built_shards} built ({} entries indexed)",
+        load_indexed_entries(&index.root().join("segments"))?.len()
     );
+    #[cfg(feature = "semantic")]
+    {
+        let embedded = index.embed_pending(32)?;
+        println!(
+            "Embedding: {embedded}/{} chunks done",
+            index.wal_entries_count()?
+        );
+    }
     Ok(())
 }
 
@@ -210,11 +226,49 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
     let indexed_entries = load_indexed_entries(&segments_dir)?.len() as usize;
     let unindexed_entries = wal_entries.saturating_sub(indexed_entries);
 
-    println!("Index root path: {}", index.root().display());
-    println!("WAL entries count: {wal_entries}");
-    println!("Shard count: {shard_count}");
-    println!("Indexed entries count: {indexed_entries}");
-    println!("Unindexed entries count: {unindexed_entries}");
+    println!("Index: {}", index.root().display());
+    println!("WAL entries: {wal_entries}");
+    println!(
+        "Shards: {shard_count} ({indexed_entries} entries indexed, {unindexed_entries} unindexed)"
+    );
+    #[cfg(feature = "semantic")]
+    {
+        let semantic = index.semantic_status()?;
+        if semantic.vectors == 0 {
+            println!("Vectors: none (run `sieve download-model`)");
+        } else {
+            println!(
+                "Vectors: {} ({}-dim, {})",
+                semantic.vectors, semantic.dimension, DEFAULT_MODEL_NAME
+            );
+        }
+        let percent = if semantic.total_chunks == 0 {
+            0
+        } else {
+            (semantic.vectors * 100) / semantic.total_chunks
+        };
+        println!(
+            "Semantic coverage: {}/{} chunks ({}%)",
+            semantic.vectors, semantic.total_chunks, percent
+        );
+        if semantic.model_cached {
+            println!("Model: cached at {}", semantic.model_dir.display());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "semantic")]
+fn run_download_model() -> Result<()> {
+    let manager = ModelManager::new(&default_sieve_data_dir());
+    let model = manager.ensure_model(DEFAULT_MODEL_NAME)?;
+    let tokenizer = manager.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
+    println!(
+        "Model cached at {}",
+        model.parent().unwrap_or(model.as_path()).display()
+    );
+    println!("Model file: {}", model.display());
+    println!("Tokenizer file: {}", tokenizer.display());
     Ok(())
 }
 

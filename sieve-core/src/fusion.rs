@@ -5,6 +5,8 @@ pub enum ResultSource {
     RawScan,
     ScanFallback,
     LexicalBm25,
+    HotVector,
+    DeltaFallback,
     Fused,
 }
 
@@ -14,6 +16,8 @@ impl ResultSource {
             Self::RawScan => "scan",
             Self::ScanFallback => "scan:fallback",
             Self::LexicalBm25 => "bm25",
+            Self::HotVector => "vec",
+            Self::DeltaFallback => "delta",
             Self::Fused => "fused",
         }
     }

@@ -3,12 +3,16 @@ name = "sieve-cli"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["semantic"]
+semantic = ["sieve-core/semantic"]
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
 ignore = { workspace = true }
 serde_json = { workspace = true }
-sieve-core = { path = "../sieve-core" }
+sieve-core = { path = "../sieve-core", default-features = false }
 
 [dev-dependencies]
 tempfile = "3"

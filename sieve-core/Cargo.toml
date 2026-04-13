@@ -3,6 +3,10 @@ name = "sieve-core"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["semantic"]
+semantic = ["dep:ort", "dep:tokenizers", "dep:reqwest", "dep:indicatif", "dep:ndarray", "dep:bincode"]
+
 [dependencies]
 blake3 = { workspace = true }
 fs2 = "0.4"
@@ -17,6 +21,12 @@ serde_json = { workspace = true }
 tantivy = "0.22"
 thiserror = { workspace = true }
 tracing = { workspace = true }
+ort = { version = "2.0.0-rc.12", optional = true }
+tokenizers = { version = "0.20", optional = true }
+reqwest = { version = "0.12", features = ["blocking"], optional = true }
+indicatif = { version = "0.17", optional = true }
+ndarray = { version = "0.17", optional = true }
+bincode = { version = "1", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
