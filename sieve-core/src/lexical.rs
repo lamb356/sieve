@@ -6,19 +6,29 @@ use memmap2::Mmap;
 use roaring::RoaringTreemap;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
-use tantivy::query::QueryParser;
-use tantivy::schema::{Field, Schema, SchemaBuilder, Value, STORED, STRING, TEXT};
+use tantivy::query::{Query, QueryParser, TermQuery};
+use tantivy::schema::{
+    Field, IndexRecordOption, NumericOptions, Schema, SchemaBuilder, TextFieldIndexing,
+    TextOptions, Value, STORED, STRING, TEXT,
+};
+use tantivy::tokenizer::{LowerCaser, RegexTokenizer, TextAnalyzer};
+use tantivy::Term;
 use tantivy::{doc, Index as TantivyIndex, TantivyDocument};
 use tracing::debug;
 
+use crate::chunk::SlidingChunker;
 use crate::{Index, Result, SieveError, WalMetaRecord};
 
 const INDEXED_ENTRIES_FILE: &str = "indexed_entries.bin";
 const SHARD_PREFIX: &str = "seg_";
+const IDENT_TOKENIZER_NAME: &str = "ident_preserving";
+const IDENT_PATTERN: &str = r"[A-Za-z0-9_:.\\/-]+";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LexicalMatch {
     pub source_path: String,
+    pub chunk_id: u32,
+    pub byte_range: (u32, u32),
     pub line_range: (usize, usize),
     pub snippet: String,
     pub bm25_score: f64,
@@ -34,11 +44,15 @@ pub(crate) struct LexicalSearchOutcome {
 #[derive(Clone, Copy)]
 struct LexicalFields {
     source_path: Field,
-    content: Field,
+    body_text: Field,
+    ident_text: Field,
     wal_entry_id: Field,
-    byte_offset: Field,
+    chunk_id: Field,
+    byte_start: Field,
+    byte_end: Field,
     line_range_start: Field,
     line_range_end: Field,
+    stored_text: Field,
 }
 
 pub fn build_pending_shards(index: &Index) -> Result<usize> {
@@ -75,7 +89,9 @@ pub fn build_pending_shards(index: &Index) -> Result<usize> {
     })?;
     let tantivy_index =
         TantivyIndex::open_or_create(MmapDirectory::open(&temp_dir)?, schema.clone())?;
+    register_tokenizers(&tantivy_index)?;
     let mut writer = tantivy_index.writer(50_000_000)?;
+    let chunker = SlidingChunker::default();
 
     for entry in &pending {
         let start = entry.byte_offset as usize;
@@ -84,14 +100,20 @@ pub fn build_pending_shards(index: &Index) -> Result<usize> {
             continue;
         }
         let content = String::from_utf8_lossy(&mmap[start..end]).into_owned();
-        writer.add_document(doc!(
-            fields.source_path => entry.source_path.clone(),
-            fields.content => content,
-            fields.wal_entry_id => entry.wal_entry_id,
-            fields.byte_offset => entry.byte_offset,
-            fields.line_range_start => entry.line_range_start as u64,
-            fields.line_range_end => entry.line_range_end as u64,
-        ))?;
+        for chunk in chunker.chunk(entry.wal_entry_id, &content) {
+            writer.add_document(doc!(
+                fields.body_text => chunk.text.clone(),
+                fields.ident_text => chunk.text.clone(),
+                fields.source_path => entry.source_path.clone(),
+                fields.wal_entry_id => entry.wal_entry_id,
+                fields.chunk_id => chunk.chunk_id as u64,
+                fields.byte_start => chunk.byte_start as u64,
+                fields.byte_end => chunk.byte_end as u64,
+                fields.line_range_start => chunk.line_range.0 as u64,
+                fields.line_range_end => chunk.line_range.1 as u64,
+                fields.stored_text => chunk.text,
+            ))?;
+        }
     }
 
     writer.commit()?;
@@ -138,6 +160,7 @@ pub(crate) fn search_lexical_with_fallback(
 
     for shard_dir in shard_dirs {
         let index = TantivyIndex::open_in_dir(&shard_dir)?;
+        register_tokenizers(&index)?;
         let schema = index.schema();
         let fields = schema_fields(&schema).ok_or_else(|| {
             SieveError::Io(std::io::Error::new(
@@ -147,8 +170,9 @@ pub(crate) fn search_lexical_with_fallback(
         })?;
         let reader = index.reader()?;
         let searcher = reader.searcher();
-        let parser = QueryParser::for_index(&index, vec![fields.content]);
-        let Some(query_obj) = parse_query_with_phrase_retry(&index, &parser, query) else {
+        let parser = QueryParser::for_index(&index, vec![fields.body_text]);
+        let Some(query_obj) = parse_query_with_ident_fallback(&parser, fields.ident_text, query)
+        else {
             return Ok(LexicalSearchOutcome {
                 matches: Vec::new(),
                 skipped_due_to_parse_failure: true,
@@ -163,8 +187,8 @@ pub(crate) fn search_lexical_with_fallback(
                 .and_then(|v| v.as_str())
                 .unwrap_or_default()
                 .to_string();
-            let content = retrieved
-                .get_first(fields.content)
+            let stored_text = retrieved
+                .get_first(fields.stored_text)
                 .and_then(|v| v.as_str())
                 .unwrap_or_default()
                 .to_string();
@@ -172,6 +196,18 @@ pub(crate) fn search_lexical_with_fallback(
                 .get_first(fields.wal_entry_id)
                 .and_then(|v| v.as_u64())
                 .unwrap_or_default();
+            let chunk_id = retrieved
+                .get_first(fields.chunk_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
+            let byte_start = retrieved
+                .get_first(fields.byte_start)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
+            let byte_end = retrieved
+                .get_first(fields.byte_end)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
             let default_line_start = retrieved
                 .get_first(fields.line_range_start)
                 .and_then(|v| v.as_u64())
@@ -181,12 +217,14 @@ pub(crate) fn search_lexical_with_fallback(
                 .and_then(|v| v.as_u64())
                 .unwrap_or(default_line_start as u64) as usize;
             let (line_range, snippet) = extract_snippet_and_line_range(
-                &content,
+                &stored_text,
                 query,
                 (default_line_start, default_line_end),
             );
             results.push(LexicalMatch {
                 source_path,
+                chunk_id,
+                byte_range: (byte_start, byte_end),
                 line_range,
                 snippet,
                 bm25_score: score as f64,
@@ -210,54 +248,35 @@ pub(crate) fn search_lexical_with_fallback(
     })
 }
 
-fn parse_query_with_phrase_retry(
-    index: &TantivyIndex,
+fn parse_query_with_ident_fallback(
     parser: &QueryParser,
+    ident_field: Field,
     query: &str,
-) -> Option<Box<dyn tantivy::query::Query>> {
+) -> Option<Box<dyn Query>> {
     match parser.parse_query(query) {
         Ok(parsed) => Some(parsed),
         Err(default_err) => {
-            debug!(query = %query, error = %default_err, "tantivy default query parse failed; retrying as exact phrase");
-            let phrase_query = exact_phrase_query(query);
-            match parser.parse_query(&phrase_query) {
-                Ok(parsed) => {
-                    if phrase_retry_preserves_query_shape(index, query) {
-                        Some(parsed)
-                    } else {
-                        debug!(query = %query, phrase_query = %phrase_query, "tantivy exact phrase retry normalized away symbol boundaries; skipping lexical layer");
-                        None
-                    }
-                }
-                Err(phrase_err) => {
-                    debug!(query = %query, phrase_query = %phrase_query, error = %phrase_err, "tantivy exact phrase retry failed; skipping lexical layer");
-                    None
-                }
-            }
+            debug!(query = %query, error = %default_err, "tantivy body_text query parse failed; retrying as identifier term query");
+            identifier_term(query).map(|term_text| {
+                Box::new(TermQuery::new(
+                    Term::from_field_text(ident_field, &term_text),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn Query>
+            })
         }
     }
 }
 
-fn phrase_retry_preserves_query_shape(index: &TantivyIndex, query: &str) -> bool {
-    let Some(mut tokenizer) = index.tokenizers().get("default") else {
-        return false;
-    };
-    let mut stream = tokenizer.token_stream(query);
-    let mut tokens = Vec::new();
-    while stream.advance() {
-        tokens.push(stream.token().text.clone());
+fn identifier_term(query: &str) -> Option<String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return None;
     }
-    if tokens.is_empty() {
-        return false;
+    let regex = regex::Regex::new(&format!("^{IDENT_PATTERN}$")).ok()?;
+    if !regex.is_match(trimmed) {
+        return None;
     }
-    let normalized_query = query.trim().to_lowercase();
-    let tokenized_query = tokens.join(" ");
-    normalized_query == tokenized_query
-}
-
-fn exact_phrase_query(query: &str) -> String {
-    let escaped = query.replace('\\', r"\\").replace('"', r#"\""#);
-    format!("\"{escaped}\"")
+    Some(trimmed.to_lowercase())
 }
 
 pub fn load_indexed_entries(shards_dir: &Path) -> Result<RoaringTreemap> {
@@ -291,10 +310,12 @@ pub fn merge_small_shards(shards_dir: &Path) -> Result<()> {
     }
     fs::create_dir_all(&temp_dir)?;
     let merged_index = TantivyIndex::open_or_create(MmapDirectory::open(&temp_dir)?, schema)?;
+    register_tokenizers(&merged_index)?;
     let mut writer = merged_index.writer(50_000_000)?;
 
     for shard_dir in &shard_dirs {
         let shard_index = TantivyIndex::open_in_dir(shard_dir)?;
+        register_tokenizers(&shard_index)?;
         let reader = shard_index.reader()?;
         let searcher = reader.searcher();
         for segment_reader in searcher.segment_readers() {
@@ -306,8 +327,8 @@ pub fn merge_small_shards(shards_dir: &Path) -> Result<()> {
                     .and_then(|v| v.as_str())
                     .unwrap_or_default()
                     .to_string();
-                let content = doc
-                    .get_first(fields.content)
+                let body_text = doc
+                    .get_first(fields.body_text)
                     .and_then(|v| v.as_str())
                     .unwrap_or_default()
                     .to_string();
@@ -315,8 +336,16 @@ pub fn merge_small_shards(shards_dir: &Path) -> Result<()> {
                     .get_first(fields.wal_entry_id)
                     .and_then(|v| v.as_u64())
                     .unwrap_or_default();
-                let byte_offset = doc
-                    .get_first(fields.byte_offset)
+                let chunk_id = doc
+                    .get_first(fields.chunk_id)
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or_default();
+                let byte_start = doc
+                    .get_first(fields.byte_start)
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or_default();
+                let byte_end = doc
+                    .get_first(fields.byte_end)
                     .and_then(|v| v.as_u64())
                     .unwrap_or_default();
                 let line_start = doc
@@ -327,13 +356,27 @@ pub fn merge_small_shards(shards_dir: &Path) -> Result<()> {
                     .get_first(fields.line_range_end)
                     .and_then(|v| v.as_u64())
                     .unwrap_or(line_start);
+                let stored_text = doc
+                    .get_first(fields.stored_text)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let ident_text = if stored_text.is_empty() {
+                    body_text.clone()
+                } else {
+                    stored_text.clone()
+                };
                 writer.add_document(doc!(
                     fields.source_path => source_path,
-                    fields.content => content,
+                    fields.body_text => body_text,
+                    fields.ident_text => ident_text,
                     fields.wal_entry_id => wal_entry_id,
-                    fields.byte_offset => byte_offset,
+                    fields.chunk_id => chunk_id,
+                    fields.byte_start => byte_start,
+                    fields.byte_end => byte_end,
                     fields.line_range_start => line_start,
                     fields.line_range_end => line_end,
+                    fields.stored_text => stored_text,
                 ))?;
             }
         }
@@ -366,23 +409,50 @@ fn persist_indexed_entries(shards_dir: &Path, bitmap: &RoaringTreemap) -> Result
 fn lexical_schema() -> Schema {
     let mut builder = SchemaBuilder::default();
     builder.add_text_field("source_path", STRING | STORED);
-    builder.add_text_field("content", TEXT | STORED);
-    builder.add_u64_field("wal_entry_id", STORED);
-    builder.add_u64_field("byte_offset", STORED);
+    builder.add_text_field("body_text", TEXT | STORED);
+    builder.add_text_field(
+        "ident_text",
+        TextOptions::default().set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer(IDENT_TOKENIZER_NAME)
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        ),
+    );
+    builder.add_u64_field(
+        "wal_entry_id",
+        NumericOptions::default().set_stored().set_indexed(),
+    );
+    builder.add_u64_field("chunk_id", STORED);
+    builder.add_u64_field("byte_start", STORED);
+    builder.add_u64_field("byte_end", STORED);
     builder.add_u64_field("line_range_start", STORED);
     builder.add_u64_field("line_range_end", STORED);
+    builder.add_text_field("stored_text", STRING | STORED);
     builder.build()
 }
 
 fn schema_fields(schema: &Schema) -> Option<LexicalFields> {
     Some(LexicalFields {
         source_path: schema.get_field("source_path").ok()?,
-        content: schema.get_field("content").ok()?,
+        body_text: schema.get_field("body_text").ok()?,
+        ident_text: schema.get_field("ident_text").ok()?,
         wal_entry_id: schema.get_field("wal_entry_id").ok()?,
-        byte_offset: schema.get_field("byte_offset").ok()?,
+        chunk_id: schema.get_field("chunk_id").ok()?,
+        byte_start: schema.get_field("byte_start").ok()?,
+        byte_end: schema.get_field("byte_end").ok()?,
         line_range_start: schema.get_field("line_range_start").ok()?,
         line_range_end: schema.get_field("line_range_end").ok()?,
+        stored_text: schema.get_field("stored_text").ok()?,
     })
+}
+
+fn register_tokenizers(index: &TantivyIndex) -> Result<()> {
+    let tokenizer = RegexTokenizer::new(IDENT_PATTERN)?;
+    index.tokenizers().register(
+        IDENT_TOKENIZER_NAME,
+        TextAnalyzer::builder(tokenizer).filter(LowerCaser).build(),
+    );
+    Ok(())
 }
 
 fn next_shard_id(shards_dir: &Path) -> Result<usize> {
@@ -428,7 +498,7 @@ fn extract_snippet_and_line_range(
         .enumerate()
         .find(|(_, line)| line.contains(normalized))
     {
-        let line_no = idx + 1;
+        let line_no = default_range.0 + idx;
         return ((line_no, line_no), line.to_string());
     }
 
@@ -441,7 +511,7 @@ fn extract_snippet_and_line_range(
         .enumerate()
         .find(|(_, line)| terms.iter().any(|term| line.contains(term)))
     {
-        let line_no = idx + 1;
+        let line_no = default_range.0 + idx;
         return ((line_no, line_no), line.to_string());
     }
 

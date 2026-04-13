@@ -46,7 +46,8 @@ fn search_command_finds_indexed_content_from_current_directory() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("handlers.rs:1:fn authentication_middleware() {}"));
+    assert!(stdout.contains("handlers.rs:1:"));
+    assert!(stdout.contains("fn authentication_middleware() {}"));
 }
 
 #[test]
@@ -103,7 +104,8 @@ fn reindex_rebuilds_index_instead_of_accumulating_stale_results() {
         .unwrap();
     assert!(goodbye.status.success());
     let stdout = String::from_utf8_lossy(&goodbye.stdout);
-    assert_eq!(stdout.matches("handlers.rs:1:fn goodbye() {}").count(), 1);
+    assert_eq!(stdout.matches("handlers.rs:1:").count(), 1);
+    assert!(stdout.contains("fn goodbye() {}"));
 }
 
 #[test]
@@ -183,6 +185,8 @@ fn test_json_output() {
     assert_eq!(arr.len(), 1);
     assert_eq!(arr[0]["path"], "handlers.rs");
     assert_eq!(arr[0]["line"], 1);
+    assert!(arr[0]["chunk_id"].as_u64().is_some());
+    assert_eq!(arr[0]["byte_range"].as_array().map(|v| v.len()), Some(2));
     assert_eq!(arr[0]["layer"], "fused");
 }
 
@@ -211,6 +215,7 @@ fn test_status_command() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Index:"));
     assert!(stdout.contains("WAL entries:"));
+    assert!(stdout.contains("Chunks:"));
     assert!(stdout.contains("Shards:"));
     #[cfg(feature = "semantic")]
     {
@@ -302,4 +307,19 @@ fn test_corrupt_manifest_fails_loudly() {
         .output()
         .unwrap();
     assert!(!output.status.success());
+}
+
+#[cfg(feature = "semantic")]
+#[test]
+fn test_download_model_sparse_stub() {
+    let output = Command::new(sieve_bin())
+        .args(["download-model", "--sparse"])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "SPLADE model download not yet implemented (Phase 4 Batch 2)"
+    );
 }

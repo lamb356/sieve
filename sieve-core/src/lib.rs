@@ -1,3 +1,4 @@
+pub mod chunk;
 #[cfg(feature = "semantic")]
 pub mod embed;
 pub mod fusion;
@@ -23,12 +24,13 @@ use regex::bytes::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::fusion::{rrf_fuse, ResultSource, ScoredResult};
+use crate::chunk::{Chunk, SlidingChunker};
+use crate::fusion::{weighted_rrf_fuse, ResultId, ResultSource, ScoredResult};
 use crate::lexical::{search_lexical_with_fallback, LexicalMatch};
 #[cfg(feature = "semantic")]
 use crate::model::{ModelManager, DEFAULT_MODEL_NAME};
 #[cfg(feature = "semantic")]
-use crate::vectors::{HotVectorStore, VectorMatch, VectorMeta};
+use crate::vectors::{snippet_from_byte_range, HotVectorStore, VectorMatch, VectorMeta};
 
 const WAL_META_FILE_NAME: &str = "wal.meta";
 const WAL_CONTENT_FILE_NAME: &str = "wal.content";
@@ -46,6 +48,8 @@ pub enum SieveError {
     TantivyDirectory(#[from] tantivy::directory::error::OpenDirectoryError),
     #[error("regex error: {0}")]
     Regex(#[from] regex::Error),
+    #[error("{0}")]
+    Message(String),
     #[error("lock poisoned")]
     LockPoisoned,
 }
@@ -74,6 +78,8 @@ pub struct SearchResult {
     pub source_path: String,
     pub line_number: usize,
     pub line_range: (usize, usize),
+    pub chunk_id: u32,
+    pub byte_range: (u32, u32),
     pub snippet: String,
     pub score: f64,
     pub source_layer: ResultSource,
@@ -285,7 +291,13 @@ impl Index {
                     tag_scan_results_as_fallback(&mut scan);
                 }
                 let lexical = filter_lexical_matches(lexical.matches, &active_ids);
-                rrf_fuse(vec![scan, lexical_to_scored(lexical)], 5.0)
+                weighted_rrf_fuse(
+                    vec![
+                        (ResultSource::RawScan, 0.90, scan),
+                        (ResultSource::LexicalBm25, 1.00, lexical_to_scored(lexical)),
+                    ],
+                    20.0,
+                )
             }
             QueryKind::Default => {
                 let (scan, lexical) = join(
@@ -303,7 +315,10 @@ impl Index {
                 let lexical = filter_lexical_matches(lexical.matches, &active_ids);
                 let scan_results = scan;
                 let lexical_results = lexical_to_scored(lexical);
-                let result_sets = vec![scan_results, lexical_results];
+                let result_sets = vec![
+                    (ResultSource::RawScan, 0.90, scan_results),
+                    (ResultSource::LexicalBm25, 1.00, lexical_results),
+                ];
 
                 #[cfg(feature = "semantic")]
                 let mut result_sets = result_sets;
@@ -325,7 +340,11 @@ impl Index {
                                 &active_ids,
                             );
                             if !vector_matches.is_empty() {
-                                semantic_sets.push(vector_matches_to_scored(vector_matches));
+                                semantic_sets.push((
+                                    ResultSource::HotVector,
+                                    1.00,
+                                    vector_matches_to_scored(vector_matches),
+                                ));
                             }
                         }
                         let delta_entries: Vec<WalMetaRecord> = active_metadata
@@ -334,17 +353,21 @@ impl Index {
                             .cloned()
                             .collect();
                         if !delta_entries.is_empty() && delta_entries.len() <= 50 {
-                            let texts: Result<Vec<String>> = delta_entries
+                            let chunk_batches: Result<Vec<Vec<SourceChunk>>> = delta_entries
                                 .iter()
-                                .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                                .map(|entry| {
+                                    self.read_entry_content(entry.wal_entry_id)
+                                        .map(|content| chunk_entry(entry, &content))
+                                })
                                 .collect();
-                            let texts = texts?;
-                            let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+                            let delta_chunks: Vec<SourceChunk> =
+                                chunk_batches?.into_iter().flatten().collect();
+                            let refs: Vec<&str> =
+                                delta_chunks.iter().map(|chunk| chunk.chunk.text.as_str()).collect();
                             let vectors = embedder.embed_batch(&refs)?;
-                            let delta =
-                                score_delta_vectors(&query_vec, &delta_entries, &vectors, top_k);
+                            let delta = score_delta_vectors(&query_vec, &delta_chunks, &vectors, top_k);
                             if !delta.is_empty() {
-                                semantic_sets.push(delta);
+                                semantic_sets.push((ResultSource::DeltaFallback, 0.85, delta));
                             }
                         }
                         if !semantic_sets.is_empty() {
@@ -354,7 +377,7 @@ impl Index {
                     }
                 }
 
-                rrf_fuse(result_sets, 5.0)
+                weighted_rrf_fuse(result_sets, 20.0)
             }
         };
 
@@ -366,12 +389,41 @@ impl Index {
                     self.read_entry_content(result.wal_entry_id)
                         .ok()
                         .map(|content| {
-                            snippet_for_query(
-                                &content,
-                                result.line_range,
-                                query,
+                            #[cfg(feature = "semantic")]
+                            if matches!(
                                 result.source_layer,
-                            )
+                                ResultSource::HotVector | ResultSource::DeltaFallback
+                            ) {
+                                snippet_from_byte_range(
+                                    &content,
+                                    (result.result_id.byte_start, result.result_id.byte_end),
+                                )
+                                .map(|snippet| (result.line_range, snippet))
+                                .unwrap_or_else(|_| {
+                                    snippet_for_query(
+                                        &content,
+                                        result.line_range,
+                                        query,
+                                        result.source_layer,
+                                    )
+                                })
+                            } else {
+                                snippet_for_query(
+                                    &content,
+                                    result.line_range,
+                                    query,
+                                    result.source_layer,
+                                )
+                            }
+                            #[cfg(not(feature = "semantic"))]
+                            {
+                                snippet_for_query(
+                                    &content,
+                                    result.line_range,
+                                    query,
+                                    result.source_layer,
+                                )
+                            }
                         })
                         .unwrap_or((result.line_range, String::new()))
                 } else {
@@ -380,6 +432,8 @@ impl Index {
                 SearchResult {
                     line_number: line_range.0,
                     line_range,
+                    chunk_id: result.chunk_id,
+                    byte_range: (result.result_id.byte_start, result.result_id.byte_end),
                     source_path: result.source_path,
                     snippet,
                     score: result.score,
@@ -504,6 +558,18 @@ impl Index {
             .len())
     }
 
+    pub fn chunk_count(&self) -> Result<usize> {
+        Ok(self
+            .metadata_snapshot()?
+            .iter()
+            .map(|entry| {
+                self.read_entry_content(entry.wal_entry_id)
+                    .map(|content| chunk_entry(entry, &content).len())
+                    .unwrap_or(0)
+            })
+            .sum())
+    }
+
     pub fn active_wal_entry_ids(&self) -> Result<HashSet<u64>> {
         let manifest = self.manifest.read().map_err(|_| SieveError::LockPoisoned)?;
         Ok(manifest.values().map(|entry| entry.wal_entry_id).collect())
@@ -511,7 +577,7 @@ impl Index {
 
     #[cfg(feature = "semantic")]
     pub fn semantic_status(&self) -> Result<SemanticStatus> {
-        let total_chunks = self.wal_entries_count()?;
+        let total_chunks = self.total_chunk_count()?;
         let model_manager = self.model_manager();
         let model_dir = model_manager.model_dir(DEFAULT_MODEL_NAME);
         let model_cached = model_manager.is_cached(DEFAULT_MODEL_NAME);
@@ -561,20 +627,27 @@ impl Index {
         for chunk in pending.chunks(batch_size.max(1)) {
             let chunk_ids: Vec<u64> = chunk.iter().map(|entry| entry.wal_entry_id).collect();
             tracing::debug!(?chunk_ids, "embedding wal chunk batch");
-            let texts: Result<Vec<String>> = chunk
+            let chunk_batches: Result<Vec<Vec<SourceChunk>>> = chunk
                 .iter()
-                .map(|entry| self.read_entry_content(entry.wal_entry_id))
+                .map(|entry| {
+                    self.read_entry_content(entry.wal_entry_id)
+                        .map(|content| chunk_entry(entry, &content))
+                })
                 .collect();
-            let texts = texts?;
-            let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            let vectors = embedder.embed_batch(&refs)?;
-            let metas: Vec<VectorMeta> = chunk
+            let chunk_records: Vec<SourceChunk> = chunk_batches?.into_iter().flatten().collect();
+            let refs: Vec<&str> = chunk_records
                 .iter()
-                .map(|entry| VectorMeta {
-                    wal_entry_id: entry.wal_entry_id,
-                    source_path: entry.source_path.clone(),
-                    line_range: (entry.line_range_start, entry.line_range_end),
-                    chunk_index: 0,
+                .map(|entry| entry.chunk.text.as_str())
+                .collect();
+            let vectors = embedder.embed_batch(&refs)?;
+            let metas: Vec<VectorMeta> = chunk_records
+                .iter()
+                .map(|chunk| VectorMeta {
+                    wal_entry_id: chunk.chunk.wal_entry_id,
+                    chunk_id: chunk.chunk.chunk_id,
+                    source_path: chunk.source_path.clone(),
+                    byte_range: (chunk.chunk.byte_start, chunk.chunk.byte_end),
+                    line_range: chunk.chunk.line_range,
                 })
                 .collect();
             store.append(&vectors, &metas)?;
@@ -595,9 +668,13 @@ impl Index {
         if !manager.is_cached(DEFAULT_MODEL_NAME) {
             return Ok(None);
         }
-        let model_path = manager.ensure_model(DEFAULT_MODEL_NAME)?;
-        let tokenizer_path = manager.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
-        crate::embed::Embedder::load(&model_path, &tokenizer_path).map(Some)
+        let handle = manager.ensure_dense_model()?;
+        crate::embed::Embedder::load(&handle.model_path, &handle.tokenizer_path).map(Some)
+    }
+
+    #[cfg(feature = "semantic")]
+    fn total_chunk_count(&self) -> Result<usize> {
+        self.chunk_count()
     }
 }
 
@@ -898,16 +975,52 @@ fn push_line_result(
     let snippet = String::from_utf8_lossy(&slice[line_start..line_end])
         .trim_end_matches('\r')
         .to_string();
+    let (result_id, chunk_id) = scan_result_identity(slice, entry, match_offset, line_start, line_end);
 
     results.push(ScoredResult {
+        result_id,
         source_path: entry.source_path.clone(),
         line_range: (line_number, line_number),
+        chunk_id,
         snippet,
         score: 1.0,
         source_layer,
         wal_entry_id: entry.wal_entry_id,
     });
     *last_line_start = Some(line_start);
+}
+
+fn scan_result_identity(
+    slice: &[u8],
+    entry: &WalMetaRecord,
+    match_offset: usize,
+    line_start: usize,
+    line_end: usize,
+) -> (ResultId, u32) {
+    let content = String::from_utf8_lossy(slice);
+    if let Some(chunk) = chunk_entry(entry, &content).into_iter().find(|chunk| {
+        let start = chunk.chunk.byte_start as usize;
+        let end = chunk.chunk.byte_end as usize;
+        match_offset >= start && match_offset < end
+    }) {
+        return (
+            ResultId {
+                wal_entry_id: entry.wal_entry_id,
+                byte_start: chunk.chunk.byte_start,
+                byte_end: chunk.chunk.byte_end,
+            },
+            chunk.chunk.chunk_id,
+        );
+    }
+
+    (
+        ResultId {
+            wal_entry_id: entry.wal_entry_id,
+            byte_start: line_start as u32,
+            byte_end: line_end as u32,
+        },
+        0,
+    )
 }
 
 fn snippet_for_query(
@@ -1112,8 +1225,14 @@ fn lexical_to_scored(matches: Vec<LexicalMatch>) -> Vec<ScoredResult> {
     matches
         .into_iter()
         .map(|entry| ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: entry.wal_entry_id,
+                byte_start: entry.byte_range.0,
+                byte_end: entry.byte_range.1,
+            },
             source_path: entry.source_path,
             line_range: entry.line_range,
+            chunk_id: entry.chunk_id,
             snippet: entry.snippet,
             score: entry.bm25_score,
             source_layer: ResultSource::LexicalBm25,
@@ -1127,8 +1246,14 @@ fn vector_matches_to_scored(matches: Vec<VectorMatch>) -> Vec<ScoredResult> {
     matches
         .into_iter()
         .map(|entry| ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: entry.wal_entry_id,
+                byte_start: entry.byte_range.0,
+                byte_end: entry.byte_range.1,
+            },
             source_path: entry.source_path,
             line_range: entry.line_range,
+            chunk_id: entry.chunk_id,
             snippet: String::new(),
             score: entry.score,
             source_layer: ResultSource::HotVector,
@@ -1148,7 +1273,7 @@ fn filter_vector_matches(matches: Vec<VectorMatch>, active_ids: &HashSet<u64>) -
 #[cfg(feature = "semantic")]
 fn score_delta_vectors(
     query_vec: &[f32],
-    entries: &[WalMetaRecord],
+    entries: &[SourceChunk],
     vectors: &[Vec<f32>],
     top_k: usize,
 ) -> Vec<ScoredResult> {
@@ -1156,12 +1281,18 @@ fn score_delta_vectors(
         .iter()
         .zip(vectors.iter())
         .map(|(entry, vector)| ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: entry.chunk.wal_entry_id,
+                byte_start: entry.chunk.byte_start,
+                byte_end: entry.chunk.byte_end,
+            },
             source_path: entry.source_path.clone(),
-            line_range: (entry.line_range_start, entry.line_range_end),
+            line_range: entry.chunk.line_range,
+            chunk_id: entry.chunk.chunk_id,
             snippet: String::new(),
             score: dot_product(query_vec, vector),
             source_layer: ResultSource::DeltaFallback,
-            wal_entry_id: entry.wal_entry_id,
+            wal_entry_id: entry.chunk.wal_entry_id,
         })
         .collect();
     scored.sort_by(|left, right| {
@@ -1223,6 +1354,24 @@ fn hash_content(content: &[u8]) -> String {
     hasher.finalize().to_hex().to_string()
 }
 
+#[cfg_attr(not(feature = "semantic"), allow(dead_code))]
+#[derive(Debug, Clone)]
+struct SourceChunk {
+    source_path: String,
+    chunk: Chunk,
+}
+
+fn chunk_entry(entry: &WalMetaRecord, content: &str) -> Vec<SourceChunk> {
+    SlidingChunker::default()
+        .chunk_entry(entry.wal_entry_id, content)
+        .into_iter()
+        .map(|chunk| SourceChunk {
+            source_path: entry.source_path.clone(),
+            chunk,
+        })
+        .collect()
+}
+
 fn unix_timestamp_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1263,15 +1412,17 @@ mod semantic_unit_tests {
             VectorMatch {
                 wal_entry_id: 1,
                 source_path: "active.rs".into(),
+                byte_range: (0, 8),
                 line_range: (1, 1),
-                chunk_index: 0,
+                chunk_id: 0,
                 score: 0.9,
             },
             VectorMatch {
                 wal_entry_id: 2,
                 source_path: "stale.rs".into(),
+                byte_range: (8, 16),
                 line_range: (2, 2),
-                chunk_index: 0,
+                chunk_id: 0,
                 score: 0.8,
             },
         ];

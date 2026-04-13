@@ -4,9 +4,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use sieve_core::fusion::{rrf_fuse, ResultSource, ScoredResult};
+use sieve_core::fusion::{rrf_fuse, ResultId, ResultSource, ScoredResult};
 use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME};
-use sieve_core::vectors::{HotVectorStore, VectorMeta};
+use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMeta};
 use sieve_core::{Index, SearchOptions};
 use tempfile::tempdir;
 
@@ -30,7 +30,8 @@ fn sample_meta(id: u64, path: &str) -> VectorMeta {
         wal_entry_id: id,
         source_path: path.to_string(),
         line_range: (id as usize + 1, id as usize + 1),
-        chunk_index: 0,
+        chunk_id: 0,
+        byte_range: (0, 8),
     }
 }
 
@@ -123,32 +124,56 @@ fn test_search_without_model_degrades_gracefully() {
 #[test]
 fn test_rrf_fuses_all_layers() {
     let scan = vec![ScoredResult {
+        result_id: ResultId {
+            wal_entry_id: 1,
+            byte_start: 0,
+            byte_end: 4,
+        },
         source_path: "scan.rs".into(),
         line_range: (1, 1),
+        chunk_id: 0,
         snippet: "scan".into(),
         score: 1.0,
         source_layer: ResultSource::RawScan,
         wal_entry_id: 1,
     }];
     let bm25 = vec![ScoredResult {
+        result_id: ResultId {
+            wal_entry_id: 2,
+            byte_start: 0,
+            byte_end: 4,
+        },
         source_path: "combo.rs".into(),
         line_range: (2, 2),
+        chunk_id: 0,
         snippet: "bm25".into(),
         score: 2.0,
         source_layer: ResultSource::LexicalBm25,
         wal_entry_id: 2,
     }];
     let vecs = vec![ScoredResult {
+        result_id: ResultId {
+            wal_entry_id: 2,
+            byte_start: 0,
+            byte_end: 4,
+        },
         source_path: "combo.rs".into(),
         line_range: (2, 2),
+        chunk_id: 0,
         snippet: "vec".into(),
         score: 3.0,
         source_layer: ResultSource::HotVector,
         wal_entry_id: 2,
     }];
     let delta = vec![ScoredResult {
+        result_id: ResultId {
+            wal_entry_id: 3,
+            byte_start: 0,
+            byte_end: 5,
+        },
         source_path: "delta.rs".into(),
         line_range: (3, 3),
+        chunk_id: 0,
         snippet: "delta".into(),
         score: 4.0,
         source_layer: ResultSource::DeltaFallback,
@@ -225,6 +250,111 @@ fn test_vector_store_len_tracks_appends() {
         .append(&[unit_vector(384, 4)], &[sample_meta(1, "len.rs")])
         .unwrap();
     assert_eq!(store.len(), 1);
+}
+
+#[test]
+fn test_dense_embedding_chunk_aware() {
+    let dir = tempdir().unwrap();
+    let mut store = HotVectorStore::open_or_create(dir.path(), 384).unwrap();
+    let metas = vec![
+        VectorMeta {
+            wal_entry_id: 1,
+            chunk_id: 0,
+            source_path: "chunky.rs".into(),
+            byte_range: (0, 512),
+            line_range: (1, 8),
+        },
+        VectorMeta {
+            wal_entry_id: 1,
+            chunk_id: 1,
+            source_path: "chunky.rs".into(),
+            byte_range: (256, 768),
+            line_range: (5, 12),
+        },
+        VectorMeta {
+            wal_entry_id: 1,
+            chunk_id: 2,
+            source_path: "chunky.rs".into(),
+            byte_range: (512, 900),
+            line_range: (9, 16),
+        },
+    ];
+    store
+        .append(
+            &[unit_vector(384, 0), unit_vector(384, 1), unit_vector(384, 2)],
+            &metas,
+        )
+        .unwrap();
+
+    let matches = store.search_knn(&unit_vector(384, 2), 3).unwrap();
+    assert_eq!(matches[0].wal_entry_id, 1);
+    assert_eq!(matches[0].chunk_id, 2);
+    assert_eq!(matches[0].byte_range, (512, 900));
+    assert_eq!(matches[1].chunk_id, 0);
+    assert_eq!(matches[2].chunk_id, 1);
+}
+
+#[test]
+fn test_vector_snippet_from_byte_range() {
+    let content = "header line\nexact semantic window\ntrailer line\n";
+    let start = content.find("exact").unwrap() as u32;
+    let end = (content.find("trailer").unwrap() - 1) as u32;
+
+    let snippet = snippet_from_byte_range(content, (start, end)).unwrap();
+    assert_eq!(snippet, "exact semantic window");
+}
+
+#[test]
+fn test_model_registry_stubbed() {
+    let dir = tempdir().unwrap();
+    let manager = ModelManager::new(dir.path());
+    let model_dir = manager.model_dir(DEFAULT_MODEL_NAME);
+    fs::create_dir_all(&model_dir).unwrap();
+    fs::write(model_dir.join("model.onnx"), b"onnx").unwrap();
+    fs::write(model_dir.join("tokenizer.json"), b"{}").unwrap();
+
+    let registry = manager.registry().unwrap();
+    assert!(registry.dense.is_some());
+    assert!(registry.sparse.is_none());
+    assert!(registry.event_reranker.is_none());
+
+    let sparse_err = manager.ensure_sparse_model().unwrap_err();
+    assert_eq!(
+        sparse_err.to_string(),
+        "SPLADE model download not yet implemented (Phase 4 Batch 2)"
+    );
+
+    let event_err = manager.ensure_event_model().unwrap_err();
+    assert!(
+        event_err
+            .to_string()
+            .contains("Event reranker model download not yet implemented")
+    );
+}
+
+#[test]
+fn test_search_end_to_end_with_chunks() {
+    let dir = tempdir().unwrap();
+    let index = Index::open_or_create(dir.path()).unwrap();
+    let content = format!(
+        "{}\nneedle phrase lives here\n{}",
+        "left".repeat(120),
+        "right".repeat(120)
+    );
+    index.add_text("notes/chunks.txt", content).unwrap();
+    sieve_core::lexical::build_pending_shards(&index).unwrap();
+
+    let results = index
+        .search("needle phrase", SearchOptions { top_k: Some(10) })
+        .unwrap();
+
+    assert!(!results.is_empty());
+    assert!(results.iter().any(|result| {
+        result.source_path == "notes/chunks.txt"
+            && result.chunk_id <= 2
+            && result.byte_range.0 < result.byte_range.1
+            && result.snippet.contains("needle phrase lives here")
+    }));
 }
 
 #[test]

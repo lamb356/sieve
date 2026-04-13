@@ -42,7 +42,12 @@ enum Commands {
         index: Option<PathBuf>,
     },
     #[cfg(feature = "semantic")]
-    DownloadModel,
+    DownloadModel {
+        #[arg(long)]
+        sparse: bool,
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
@@ -79,7 +84,7 @@ fn run() -> Result<()> {
         } => run_search(&query, index.as_deref(), top, format, context),
         Commands::Status { index } => run_status(index.as_deref()),
         #[cfg(feature = "semantic")]
-        Commands::DownloadModel => run_download_model(),
+        Commands::DownloadModel { sparse, all } => run_download_model(sparse, all),
     }
 }
 
@@ -141,7 +146,7 @@ fn run_index(path: &Path) -> Result<()> {
     let built_shards = build_pending_shards(&index)?;
 
     println!("Indexing {}...", source_root.display());
-    println!("WAL: {} chunks", index.wal_entries_count()?);
+    println!("WAL: {} chunks", index.chunk_count()?);
     println!(
         "Shards: {built_shards} built ({} entries indexed)",
         load_indexed_entries(&index.root().join("segments"))?.len()
@@ -182,10 +187,12 @@ fn run_search(
                     result.snippet.clone()
                 };
                 println!(
-                    "[{}] {}:{}:{}",
+                    "[{}] {}:{}:{}-{}:{}",
                     result.source_layer.as_str(),
                     result.source_path,
                     result.line_number,
+                    result.byte_range.0,
+                    result.byte_range.1,
                     snippet.replace('\n', "\\n")
                 );
             }
@@ -203,6 +210,8 @@ fn run_search(
                     json!({
                         "path": result.source_path,
                         "line": result.line_number,
+                        "chunk_id": result.chunk_id,
+                        "byte_range": [result.byte_range.0, result.byte_range.1],
                         "snippet": snippet,
                         "score": result.score,
                         "layer": result.source_layer.as_str(),
@@ -223,6 +232,7 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
     let index = Index::open_or_create(&index_root)
         .with_context(|| format!("failed to open index at {}", index_root.display()))?;
     let wal_entries = index.wal_entries_count()?;
+    let chunk_count = index.chunk_count()?;
     let segments_dir = index.root().join("segments");
     let shard_count = if segments_dir.exists() {
         fs::read_dir(&segments_dir)?
@@ -237,6 +247,7 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
 
     println!("Index: {}", index.root().display());
     println!("WAL entries: {wal_entries}");
+    println!("Chunks: {chunk_count}");
     println!(
         "Shards: {shard_count} ({indexed_entries} entries indexed, {unindexed_entries} unindexed)"
     );
@@ -268,16 +279,22 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
 }
 
 #[cfg(feature = "semantic")]
-fn run_download_model() -> Result<()> {
+fn run_download_model(sparse: bool, all: bool) -> Result<()> {
     let manager = ModelManager::new(&default_sieve_data_dir());
-    let model = manager.ensure_model(DEFAULT_MODEL_NAME)?;
-    let tokenizer = manager.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
+    if sparse {
+        println!("SPLADE model download not yet implemented (Phase 4 Batch 2)");
+        return Ok(());
+    }
+    let dense = manager.ensure_dense_model()?;
     println!(
         "Model cached at {}",
-        model.parent().unwrap_or(model.as_path()).display()
+        dense.model_path.parent().unwrap_or(dense.model_path.as_path()).display()
     );
-    println!("Model file: {}", model.display());
-    println!("Tokenizer file: {}", tokenizer.display());
+    println!("Model file: {}", dense.model_path.display());
+    println!("Tokenizer file: {}", dense.tokenizer_path.display());
+    if all {
+        println!("SPLADE model download not yet implemented (Phase 4 Batch 2)");
+    }
     Ok(())
 }
 

@@ -8,7 +8,7 @@ use tokenizers::{PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
 use crate::{Result, SieveError};
 
 const MAX_TOKENS: usize = 512;
-const QUERY_PREFIX: &str = "Represent this sentence: ";
+const QUERY_PREFIX: &str = "Represent this sentence for searching relevant passages: ";
 const DEFAULT_DIMENSION: usize = 384;
 
 pub struct Embedder {

@@ -16,17 +16,19 @@ const EMBEDDED_FILE: &str = "embedded.bin";
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VectorMeta {
     pub wal_entry_id: u64,
+    pub chunk_id: u32,
     pub source_path: String,
+    pub byte_range: (u32, u32),
     pub line_range: (usize, usize),
-    pub chunk_index: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VectorMatch {
     pub wal_entry_id: u64,
+    pub chunk_id: u32,
     pub source_path: String,
+    pub byte_range: (u32, u32),
     pub line_range: (usize, usize),
-    pub chunk_index: u32,
     pub score: f64,
 }
 
@@ -124,9 +126,10 @@ impl HotVectorStore {
             let score = dot_product_bytes(&mmap[start..end], query_vec)?;
             scored.push(VectorMatch {
                 wal_entry_id: meta.wal_entry_id,
+                chunk_id: meta.chunk_id,
                 source_path: meta.source_path.clone(),
+                byte_range: meta.byte_range,
                 line_range: meta.line_range,
-                chunk_index: meta.chunk_index,
                 score,
             });
         }
@@ -236,6 +239,18 @@ fn dot_product_bytes(bytes: &[u8], query_vec: &[f32]) -> Result<f64> {
         score += (stored * value) as f64;
     }
     Ok(score)
+}
+
+pub fn snippet_from_byte_range(content: &str, byte_range: (u32, u32)) -> Result<String> {
+    let start = byte_range.0 as usize;
+    let end = byte_range.1 as usize;
+    let slice = content.get(start..end).ok_or_else(|| {
+        SieveError::Io(std::io::Error::other(format!(
+            "invalid byte range {start}..{end} for content length {}",
+            content.len()
+        )))
+    })?;
+    Ok(slice.to_string())
 }
 
 fn sync_dir(path: &Path) -> Result<()> {

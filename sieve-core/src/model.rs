@@ -1,12 +1,14 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{Result, SieveError};
 
 pub const DEFAULT_MODEL_NAME: &str = "bge-small-en-v1.5";
+pub const DEFAULT_SPARSE_MODEL_NAME: &str = "splade-v3";
 const MODEL_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
 const TOKENIZER_URL: &str =
@@ -17,12 +19,48 @@ const TOKENIZER_FILE_NAME: &str = "tokenizer.json";
 #[derive(Debug, Clone)]
 pub struct ModelManager {
     models_dir: PathBuf,
+    state: Arc<Mutex<CachedModels>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelRegistry {
+    pub dense: Option<DenseModelHandle>,
+    pub sparse: Option<SparseModelHandle>,
+    pub event_reranker: Option<EventModelHandle>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DenseModelHandle {
+    pub model_path: PathBuf,
+    pub tokenizer_path: PathBuf,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SparseModelHandle {
+    pub model_path: PathBuf,
+    pub tokenizer_path: PathBuf,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventModelHandle {
+    pub model_path: PathBuf,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CachedModels {
+    dense: Option<DenseModelHandle>,
+    sparse: Option<SparseModelHandle>,
+    event_reranker: Option<EventModelHandle>,
 }
 
 impl ModelManager {
     pub fn new(data_dir: &Path) -> Self {
         Self {
             models_dir: data_dir.join("models"),
+            state: Arc::new(Mutex::new(CachedModels::default())),
         }
     }
 
@@ -32,6 +70,47 @@ impl ModelManager {
 
     pub fn ensure_tokenizer(&self, model_name: &str) -> Result<PathBuf> {
         self.ensure_artifact(model_name, TOKENIZER_FILE_NAME, TOKENIZER_URL)
+    }
+
+    pub fn ensure_dense_model(&self) -> Result<DenseModelHandle> {
+        let model_path = self.ensure_model(DEFAULT_MODEL_NAME)?;
+        let tokenizer_path = self.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
+        let handle = DenseModelHandle {
+            model_path,
+            tokenizer_path,
+            name: DEFAULT_MODEL_NAME.to_string(),
+        };
+        let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
+        state.dense = Some(handle.clone());
+        Ok(handle)
+    }
+
+    pub fn ensure_sparse_model(&self) -> Result<SparseModelHandle> {
+        Err(SieveError::Message(
+            "SPLADE model download not yet implemented (Phase 4 Batch 2)".to_string(),
+        ))
+    }
+
+    pub fn ensure_event_model(&self) -> Result<EventModelHandle> {
+        Err(SieveError::Message(
+            "Event reranker model download not yet implemented (Phase 4 Batch 3)".to_string(),
+        ))
+    }
+
+    pub fn registry(&self) -> Result<ModelRegistry> {
+        let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
+        if state.dense.is_none() && self.is_cached(DEFAULT_MODEL_NAME) {
+            state.dense = Some(DenseModelHandle {
+                model_path: self.model_dir(DEFAULT_MODEL_NAME).join(MODEL_FILE_NAME),
+                tokenizer_path: self.model_dir(DEFAULT_MODEL_NAME).join(TOKENIZER_FILE_NAME),
+                name: DEFAULT_MODEL_NAME.to_string(),
+            });
+        }
+        Ok(ModelRegistry {
+            dense: state.dense.clone(),
+            sparse: state.sparse.clone(),
+            event_reranker: state.event_reranker.clone(),
+        })
     }
 
     pub fn is_cached(&self, model_name: &str) -> bool {

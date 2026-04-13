@@ -75,7 +75,7 @@ Mechanism:
 
 Implementation:
 - Embedding model: ONNX Runtime with a small, fast model
-  - Primary: all-MiniLM-L6-v2 (384-dim, ~30ms/chunk on CPU)
+  - Primary: bge-small-en-v1.5 (384-dim, ~30ms/chunk on CPU)
   - Future: nomic-embed-text-v1.5 (768-dim, better quality)
   - Stretch: SPLADE sparse expansion for hybrid sparse+dense
 - Vector storage: flat f32 array, mmap’d
@@ -217,9 +217,9 @@ Query flow:
    e. Layer 3: ANN lookup in warm index (if exists)
 
 3. Fuse results:
-   - Reciprocal Rank Fusion (RRF) across all result sets
-   - RRF_K = 5
-   - Deduplicate by chunk ID
+   - Weighted Reciprocal Rank Fusion (RRF) across all result sets
+   - RRF_K = 20
+   - Deduplicate results within the same WAL entry when byte-range IoU > 0.5
    - If delta was too large for 1b: annotate results with coverage %
 
 4. Return top-K results with:
