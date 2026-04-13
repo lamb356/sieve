@@ -1,0 +1,22 @@
+[package]
+name = "sieve-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake3 = { workspace = true }
+fs2 = "0.4"
+ignore = { workspace = true }
+memchr = { workspace = true }
+memmap2 = { workspace = true }
+rayon = "1"
+regex = "1"
+roaring = "0.10"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tantivy = "0.22"
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,14 @@
+[package]
+name = "sieve-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+ignore = { workspace = true }
+serde_json = { workspace = true }
+sieve-core = { path = "../sieve-core" }
+
+[dev-dependencies]
+tempfile = "3"
