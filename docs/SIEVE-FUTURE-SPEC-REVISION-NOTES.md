@@ -275,3 +275,45 @@ This makes overlap between semantic scan and Tantivy lexical retrieval an intend
 
 > The benchmark’s novel contribution is not merely a corpus choice, but a strict `T+0` eligibility protocol that forbids semantic systems from counting documents as searchable until every required retrieval artifact exists.
 
+---
+
+## 10. Area 4 architectural reference swap: MEMENTO → Memory Caching (SSC)
+
+### Change
+Replace MEMENTO as the primary architectural reference for Area 4's sequential window reranker. MEMENTO is about KV cache compression during LLM generation — not a retrieval architecture.
+
+### New primary reference
+Memory Caching: RNNs with Growing Memory (arxiv.org/abs/2602.24281, Google Research / Cornell / USC). Introduces Sparse Selective Caching (SSC): cache hidden state checkpoints at segment boundaries, use a router to selectively retrieve the most relevant past states at near-constant cost per token.
+
+### Retained secondary reference
+ExactSDM remains the retrieval-theory basis for why cross-window dependence matters in long-document sparse retrieval.
+
+### What changes architecturally
+
+Instead of carrying a single residual state forward window by window, the reranker would:
+
+1. Emit a checkpoint at each window boundary: compact key, compact value/state, metadata (byte range, anchor-group counts, content type)
+2. When scoring window t, a router conditioned on query + current window state retrieves only top-k prior checkpoints
+3. Fuse retrieved checkpoints with local window representation before producing the score
+
+The independent local event encoder stays. The sequential part becomes: checkpoint cache + top-k retrieval + gated fusion — not one persistent hidden state.
+
+### Training pipeline change
+
+Train on ordered window sequences from long documents/code files with:
+- Standard ranking loss on final window score
+- Auxiliary memory-selection loss teaching the router to retrieve useful prior windows
+- Teacher-student: let a full-history model identify which prior windows mattered, train the router to recover them
+
+### Updated success metrics
+
+Three gates:
+1. Quality on long-gap cases: +3-5% nDCG@10 on queries whose evidence spans distant windows
+2. Memory retrieval quality: top-k hit rate against oracle prior windows
+3. Bounded overhead: <25-30% p95 latency increase vs independent scorer
+
+Exit criterion: if these gates are not met, keep the simpler independent scorer plus handcrafted cross-window features.
+
+### MEMENTO disposition
+Demote to footnote or remove entirely. It remains an interesting observation about residual information in compressed representations but is not an architecture template for retrieval.
+
