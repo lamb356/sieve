@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use sieve_core::fusion::{rrf_fuse, ResultId, ResultSource, ScoredResult};
-use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME};
+use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME};
 use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMeta};
 use sieve_core::{Index, SearchOptions};
 use tempfile::tempdir;
@@ -281,7 +281,11 @@ fn test_dense_embedding_chunk_aware() {
     ];
     store
         .append(
-            &[unit_vector(384, 0), unit_vector(384, 1), unit_vector(384, 2)],
+            &[
+                unit_vector(384, 0),
+                unit_vector(384, 1),
+                unit_vector(384, 2),
+            ],
             &metas,
         )
         .unwrap();
@@ -318,17 +322,33 @@ fn test_model_registry_stubbed() {
     assert!(registry.sparse.is_none());
     assert!(registry.event_reranker.is_none());
 
-    let sparse_err = manager.ensure_sparse_model().unwrap_err();
-    assert_eq!(
-        sparse_err.to_string(),
-        "SPLADE model download not yet implemented (Phase 4 Batch 2)"
-    );
-
     let event_err = manager.ensure_event_model().unwrap_err();
-    assert!(
-        event_err
-            .to_string()
-            .contains("Event reranker model download not yet implemented")
+    assert!(event_err
+        .to_string()
+        .contains("Event reranker model download not yet implemented"));
+}
+
+#[test]
+fn test_model_manager_sparse_uses_manual_copy_layout() {
+    let dir = tempdir().unwrap();
+    let manager = ModelManager::new(dir.path());
+    let sparse_dir = manager.model_dir(DEFAULT_SPARSE_MODEL_NAME);
+    fs::create_dir_all(sparse_dir.join("splade-tokenizer")).unwrap();
+    fs::write(sparse_dir.join("splade.onnx"), b"onnx").unwrap();
+    fs::write(sparse_dir.join("splade.onnx.data"), b"weights").unwrap();
+    fs::write(
+        sparse_dir.join("splade-tokenizer").join("tokenizer.json"),
+        b"{}",
+    )
+    .unwrap();
+
+    assert!(manager.is_cached(DEFAULT_SPARSE_MODEL_NAME));
+
+    let handle = manager.ensure_sparse_model().unwrap();
+    assert_eq!(handle.model_path, sparse_dir.join("splade.onnx"));
+    assert_eq!(
+        handle.tokenizer_path,
+        sparse_dir.join("splade-tokenizer").join("tokenizer.json")
     );
 }
 

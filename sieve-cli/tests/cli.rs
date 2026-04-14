@@ -219,7 +219,9 @@ fn test_status_command() {
     assert!(stdout.contains("Shards:"));
     #[cfg(feature = "semantic")]
     {
-        assert!(stdout.contains("Vectors:"));
+        assert!(stdout.contains("Dense model:") || stdout.contains("Vectors:"));
+        assert!(stdout.contains("SPLADE model:"));
+        assert!(stdout.contains("Retrieval modes:"));
         assert!(stdout.contains("Semantic coverage:"));
     }
 }
@@ -318,8 +320,7 @@ fn test_download_model_sparse_stub() {
         .unwrap();
 
     assert!(output.status.success());
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout).trim(),
-        "SPLADE model download not yet implemented (Phase 4 Batch 2)"
-    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("SPLADE model:"));
+    assert!(stdout.contains(".sieve/models/splade"));
 }

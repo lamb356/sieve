@@ -8,13 +8,16 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::{Result, SieveError};
 
 pub const DEFAULT_MODEL_NAME: &str = "bge-small-en-v1.5";
-pub const DEFAULT_SPARSE_MODEL_NAME: &str = "splade-v3";
-const MODEL_URL: &str =
+pub const DEFAULT_SPARSE_MODEL_NAME: &str = "splade";
+const DENSE_MODEL_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
-const TOKENIZER_URL: &str =
+const DENSE_TOKENIZER_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json";
 const MODEL_FILE_NAME: &str = "model.onnx";
 const TOKENIZER_FILE_NAME: &str = "tokenizer.json";
+const SPARSE_MODEL_FILE_NAME: &str = "splade.onnx";
+const SPARSE_MODEL_DATA_FILE_NAME: &str = "splade.onnx.data";
+const SPARSE_TOKENIZER_RELATIVE_PATH: &str = "splade-tokenizer/tokenizer.json";
 
 #[derive(Debug, Clone)]
 pub struct ModelManager {
@@ -65,11 +68,11 @@ impl ModelManager {
     }
 
     pub fn ensure_model(&self, model_name: &str) -> Result<PathBuf> {
-        self.ensure_artifact(model_name, MODEL_FILE_NAME, MODEL_URL)
+        self.ensure_artifact(model_name, MODEL_FILE_NAME, dense_model_url(model_name)?)
     }
 
     pub fn ensure_tokenizer(&self, model_name: &str) -> Result<PathBuf> {
-        self.ensure_artifact(model_name, TOKENIZER_FILE_NAME, TOKENIZER_URL)
+        self.ensure_artifact(model_name, TOKENIZER_FILE_NAME, tokenizer_url(model_name)?)
     }
 
     pub fn ensure_dense_model(&self) -> Result<DenseModelHandle> {
@@ -86,9 +89,23 @@ impl ModelManager {
     }
 
     pub fn ensure_sparse_model(&self) -> Result<SparseModelHandle> {
-        Err(SieveError::Message(
-            "SPLADE model download not yet implemented (Phase 4 Batch 2)".to_string(),
-        ))
+        let model_path = self.sparse_model_path();
+        let tokenizer_path = self.sparse_tokenizer_path();
+        let data_path = self.sparse_model_data_path();
+        if !model_path.is_file() || !tokenizer_path.is_file() || !data_path.is_file() {
+            return Err(SieveError::Message(format!(
+                "SPLADE model not available at {}",
+                self.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            )));
+        }
+        let handle = SparseModelHandle {
+            model_path,
+            tokenizer_path,
+            name: DEFAULT_SPARSE_MODEL_NAME.to_string(),
+        };
+        let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
+        state.sparse = Some(handle.clone());
+        Ok(handle)
     }
 
     pub fn ensure_event_model(&self) -> Result<EventModelHandle> {
@@ -106,6 +123,13 @@ impl ModelManager {
                 name: DEFAULT_MODEL_NAME.to_string(),
             });
         }
+        if state.sparse.is_none() && self.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            state.sparse = Some(SparseModelHandle {
+                model_path: self.sparse_model_path(),
+                tokenizer_path: self.sparse_tokenizer_path(),
+                name: DEFAULT_SPARSE_MODEL_NAME.to_string(),
+            });
+        }
         Ok(ModelRegistry {
             dense: state.dense.clone(),
             sparse: state.sparse.clone(),
@@ -114,15 +138,39 @@ impl ModelManager {
     }
 
     pub fn is_cached(&self, model_name: &str) -> bool {
-        self.model_dir(model_name).join(MODEL_FILE_NAME).is_file()
-            && self
-                .model_dir(model_name)
-                .join(TOKENIZER_FILE_NAME)
-                .is_file()
+        match model_name {
+            DEFAULT_SPARSE_MODEL_NAME => {
+                self.sparse_model_path().is_file()
+                    && self.sparse_model_data_path().is_file()
+                    && self.sparse_tokenizer_path().is_file()
+            }
+            _ => {
+                self.model_dir(model_name).join(MODEL_FILE_NAME).is_file()
+                    && self
+                        .model_dir(model_name)
+                        .join(TOKENIZER_FILE_NAME)
+                        .is_file()
+            }
+        }
     }
 
     pub fn model_dir(&self, model_name: &str) -> PathBuf {
         self.models_dir.join(model_name)
+    }
+
+    pub fn sparse_model_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_SPARSE_MODEL_NAME)
+            .join(SPARSE_MODEL_FILE_NAME)
+    }
+
+    pub fn sparse_model_data_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_SPARSE_MODEL_NAME)
+            .join(SPARSE_MODEL_DATA_FILE_NAME)
+    }
+
+    pub fn sparse_tokenizer_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_SPARSE_MODEL_NAME)
+            .join(SPARSE_TOKENIZER_RELATIVE_PATH)
     }
 
     fn ensure_artifact(&self, model_name: &str, file_name: &str, url: &str) -> Result<PathBuf> {
@@ -188,4 +236,22 @@ fn sync_dir(path: &Path) -> Result<()> {
 
 fn io_invalid(message: impl Into<String>) -> SieveError {
     SieveError::Io(std::io::Error::other(message.into()))
+}
+
+fn dense_model_url(model_name: &str) -> Result<&'static str> {
+    match model_name {
+        DEFAULT_MODEL_NAME => Ok(DENSE_MODEL_URL),
+        other => Err(SieveError::Message(format!(
+            "unsupported model artifact lookup for {other}"
+        ))),
+    }
+}
+
+fn tokenizer_url(model_name: &str) -> Result<&'static str> {
+    match model_name {
+        DEFAULT_MODEL_NAME => Ok(DENSE_TOKENIZER_URL),
+        other => Err(SieveError::Message(format!(
+            "unsupported tokenizer lookup for {other}"
+        ))),
+    }
 }

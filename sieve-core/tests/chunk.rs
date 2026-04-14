@@ -28,7 +28,12 @@ fn test_sliding_chunker_basic() {
 
 #[test]
 fn test_sliding_chunker_newline_snap() {
-    let content = format!("{}\n{}\n{}", "a".repeat(500), "b".repeat(200), "c".repeat(200));
+    let content = format!(
+        "{}\n{}\n{}",
+        "a".repeat(500),
+        "b".repeat(200),
+        "c".repeat(200)
+    );
     let chunks = SlidingChunker::default().chunk_entry(11, &content);
 
     assert_eq!(chunks.len(), 3);

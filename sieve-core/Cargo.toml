@@ -8,11 +8,13 @@ default = ["semantic"]
 semantic = ["dep:ort", "dep:tokenizers", "dep:reqwest", "dep:indicatif", "dep:ndarray", "dep:bincode"]
 
 [dependencies]
+aho-corasick = "1"
 blake3 = { workspace = true }
 fs2 = "0.4"
 ignore = { workspace = true }
 memchr = { workspace = true }
 memmap2 = { workspace = true }
+phf = { version = "0.11", features = ["macros"] }
 rayon = "1"
 regex = "1"
 roaring = "0.10"

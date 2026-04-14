@@ -69,7 +69,8 @@ impl SlidingChunker {
             }
 
             let next_raw_start = end.saturating_sub(self.overlap_bytes);
-            let next_start = align_to_char_boundary(content, self.snap_start(bytes, next_raw_start, end));
+            let next_start =
+                align_to_char_boundary(content, self.snap_start(bytes, next_raw_start, end));
             if next_start <= start {
                 start = end;
             } else {

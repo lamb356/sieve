@@ -1,4 +1,6 @@
+pub mod aliases;
 pub mod chunk;
+pub mod df_prior;
 #[cfg(feature = "semantic")]
 pub mod embed;
 pub mod fusion;
@@ -6,7 +8,17 @@ pub mod lexical;
 #[cfg(feature = "semantic")]
 pub mod model;
 #[cfg(feature = "semantic")]
+pub mod semantic_query;
+#[cfg(feature = "semantic")]
+pub mod semantic_scan;
+#[cfg(feature = "semantic")]
+pub mod sparse;
+#[cfg(feature = "semantic")]
+pub mod surface;
+#[cfg(feature = "semantic")]
 pub mod vectors;
+#[cfg(feature = "semantic")]
+pub mod window_score;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -24,17 +36,35 @@ use regex::bytes::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg(feature = "semantic")]
+use crate::aliases::AliasLexicon;
 use crate::chunk::{Chunk, SlidingChunker};
+#[cfg(feature = "semantic")]
+use crate::df_prior::static_df_frac;
 use crate::fusion::{weighted_rrf_fuse, ResultId, ResultSource, ScoredResult};
+#[cfg(feature = "semantic")]
+use crate::lexical::load_indexed_entries;
 use crate::lexical::{search_lexical_with_fallback, LexicalMatch};
+#[cfg(feature = "semantic")]
+use crate::model::DEFAULT_SPARSE_MODEL_NAME;
 #[cfg(feature = "semantic")]
 use crate::model::{ModelManager, DEFAULT_MODEL_NAME};
 #[cfg(feature = "semantic")]
+use crate::semantic_query::SemanticQuery;
+#[cfg(feature = "semantic")]
+use crate::semantic_scan::compile_scan_query;
+#[cfg(feature = "semantic")]
+use crate::surface::realize_surfaces;
+#[cfg(feature = "semantic")]
 use crate::vectors::{snippet_from_byte_range, HotVectorStore, VectorMatch, VectorMeta};
+#[cfg(feature = "semantic")]
+use crate::window_score::{compute_idf, score_window};
 
 const WAL_META_FILE_NAME: &str = "wal.meta";
 const WAL_CONTENT_FILE_NAME: &str = "wal.content";
 const MANIFEST_FILE_NAME: &str = "manifest.json";
+#[cfg(feature = "semantic")]
+const SEMANTIC_SCAN_ALPHA: f64 = 1.10;
 
 #[derive(Debug, Error)]
 pub enum SieveError {
@@ -66,11 +96,22 @@ pub struct Index {
     manifest_path: PathBuf,
     metadata: Arc<RwLock<Vec<WalMetaRecord>>>,
     manifest: Arc<RwLock<HashMap<String, SourceManifestEntry>>>,
+    #[cfg(feature = "semantic")]
+    sparse_encoder: Arc<RwLock<Option<Arc<crate::sparse::SpladeEncoder>>>>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct SearchOptions {
     pub top_k: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub enum QueryPlan {
+    Exact(String),
+    Regex(String),
+    #[cfg(feature = "semantic")]
+    Semantic(Arc<SemanticQuery>),
+    Lexical(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +125,29 @@ pub struct SearchResult {
     pub score: f64,
     pub source_layer: ResultSource,
     pub wal_entry_id: u64,
+}
+
+#[cfg(feature = "semantic")]
+pub fn plan_query(
+    raw: &str,
+    sparse: Option<&crate::sparse::SpladeEncoder>,
+    aliases: &crate::aliases::AliasLexicon,
+) -> QueryPlan {
+    if raw.starts_with('/') && raw.ends_with('/') && raw.len() >= 2 {
+        return QueryPlan::Regex(raw[1..raw.len() - 1].to_string());
+    }
+    if raw.starts_with('"') && raw.ends_with('"') && raw.len() >= 2 {
+        return QueryPlan::Exact(raw[1..raw.len() - 1].to_string());
+    }
+    let Some(sparse) = sparse else {
+        return QueryPlan::Lexical(raw.to_string());
+    };
+    match crate::semantic_query::compile_semantic_query(raw, sparse, aliases) {
+        Ok(query) if query.terms.iter().any(|term| term.is_anchor) => {
+            QueryPlan::Semantic(Arc::new(query))
+        }
+        _ => QueryPlan::Lexical(raw.to_string()),
+    }
 }
 
 #[cfg(feature = "semantic")]
@@ -179,6 +243,8 @@ impl Index {
             manifest_path,
             metadata: Arc::new(RwLock::new(metadata)),
             manifest: Arc::new(RwLock::new(manifest)),
+            #[cfg(feature = "semantic")]
+            sparse_encoder: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -234,14 +300,58 @@ impl Index {
     }
 
     pub fn search(&self, query: &str, options: SearchOptions) -> Result<Vec<SearchResult>> {
+        #[cfg(feature = "semantic")]
+        {
+            self.search_semantic_internal(query, options, false)
+                .map(|outcome| outcome.results)
+        }
+
+        #[cfg(not(feature = "semantic"))]
+        {
+            self.search_legacy(query, options)
+        }
+    }
+
+    #[cfg(feature = "semantic")]
+    pub fn search_with_outcome(
+        &self,
+        query: &str,
+        options: SearchOptions,
+    ) -> Result<SearchOutcome> {
+        self.search_semantic_internal(query, options, true)
+    }
+
+    #[cfg(feature = "semantic")]
+    fn search_semantic_internal(
+        &self,
+        query: &str,
+        options: SearchOptions,
+        include_coverage: bool,
+    ) -> Result<SearchOutcome> {
         if query.is_empty() {
-            return Ok(Vec::new());
+            return Ok(SearchOutcome {
+                results: Vec::new(),
+                coverage: SearchCoverage {
+                    total_chunks: 0,
+                    embedded_chunks: 0,
+                    delta_chunks: 0,
+                    skipped_due_to_budget: false,
+                },
+            });
         }
 
         let top_k = options.top_k.unwrap_or(10);
         let metadata = self.metadata_snapshot()?;
         if metadata.is_empty() {
-            return Ok(Vec::new());
+            return Ok(SearchOutcome {
+                results: Vec::new(),
+                coverage: SearchCoverage {
+                    total_chunks: 0,
+                    embedded_chunks: 0,
+                    delta_chunks: 0,
+                    skipped_due_to_budget: false,
+                },
+            });
         }
 
         let active_ids = self.active_wal_entry_ids()?;
@@ -257,14 +367,40 @@ impl Index {
             })
             .collect();
         if active_metadata.is_empty() {
-            return Ok(Vec::new());
+            return Ok(SearchOutcome {
+                results: Vec::new(),
+                coverage: SearchCoverage {
+                    total_chunks: 0,
+                    embedded_chunks: 0,
+                    delta_chunks: 0,
+                    skipped_due_to_budget: false,
+                },
+            });
         }
 
         let shards_dir = self.root.join("segments");
-        let query_kind = QueryKind::from_query(query);
+        let aliases = AliasLexicon::built_in();
+        let plan = if (query.starts_with('/') && query.ends_with('/') && query.len() >= 2)
+            || (query.starts_with('"') && query.ends_with('"') && query.len() >= 2)
+        {
+            plan_query(query, None, &aliases)
+        } else {
+            let sparse = self.load_sparse_encoder()?;
+            plan_query(query, sparse.as_deref(), &aliases)
+        };
+        let coverage = if include_coverage {
+            self.search_coverage(&active_metadata)?
+        } else {
+            SearchCoverage {
+                total_chunks: 0,
+                embedded_chunks: 0,
+                delta_chunks: 0,
+                skipped_due_to_budget: false,
+            }
+        };
 
-        let results = match query_kind {
-            QueryKind::Regex(pattern) => {
+        let results = match plan {
+            QueryPlan::Regex(pattern) => {
                 tracing::debug!(query = %query, pattern = %pattern, "running regex scan layer");
                 scan_regex_results(
                     &self.wal_content_path,
@@ -273,6 +409,150 @@ impl Index {
                     ResultSource::RawScan,
                 )?
             }
+            QueryPlan::Exact(phrase) => {
+                let (scan, lexical) = join(
+                    || {
+                        scan_substring_results(
+                            &self.wal_content_path,
+                            &active_metadata,
+                            phrase.as_bytes(),
+                            ResultSource::RawScan,
+                        )
+                    },
+                    || search_lexical_with_fallback(&shards_dir, query, top_k),
+                );
+                let mut scan = scan?;
+                let lexical = lexical?;
+                if lexical.skipped_due_to_parse_failure {
+                    tag_scan_results_as_fallback(&mut scan);
+                }
+                let lexical = filter_lexical_matches(lexical.matches, &active_ids);
+                weighted_rrf_fuse(
+                    vec![
+                        (ResultSource::RawScan, 0.90, scan),
+                        (ResultSource::LexicalBm25, 1.00, lexical_to_scored(lexical)),
+                    ],
+                    20.0,
+                )
+            }
+            QueryPlan::Semantic(semantic_query) => {
+                let indexed_entries = load_indexed_entries(&shards_dir)?;
+                let fresh_metadata: Vec<WalMetaRecord> = active_metadata
+                    .iter()
+                    .filter(|entry| !indexed_entries.contains(entry.wal_entry_id))
+                    .cloned()
+                    .collect();
+                let scan = scan_query_results(&self.wal_content_path, &active_metadata, query)?;
+                let (semantic, lexical) = join(
+                    || {
+                        semantic_scan_results(
+                            &self.wal_content_path,
+                            &fresh_metadata,
+                            semantic_query.as_ref(),
+                        )
+                    },
+                    || search_lexical_with_fallback(&shards_dir, query, top_k),
+                );
+                let lexical = lexical?;
+                let lexical = filter_lexical_matches(lexical.matches, &active_ids);
+                let mut result_sets = vec![
+                    (ResultSource::RawScan, 0.90, scan),
+                    (ResultSource::LexicalBm25, 1.00, lexical_to_scored(lexical)),
+                ];
+                let semantic_results = semantic?;
+                if !semantic_results.is_empty() {
+                    result_sets.insert(
+                        0,
+                        (
+                            ResultSource::SemanticScan,
+                            SEMANTIC_SCAN_ALPHA,
+                            semantic_results,
+                        ),
+                    );
+                }
+                let mut dense_sets =
+                    self.semantic_dense_result_sets(query, &active_metadata, &active_ids, top_k)?;
+                if !dense_sets.is_empty() {
+                    dense_sets.append(&mut result_sets);
+                    result_sets = dense_sets;
+                }
+                weighted_rrf_fuse(result_sets, 20.0)
+            }
+            QueryPlan::Lexical(query_text) => {
+                let (scan, lexical) = join(
+                    || {
+                        tracing::debug!(query = %query_text, "running default scan layer");
+                        scan_query_results(&self.wal_content_path, &active_metadata, &query_text)
+                    },
+                    || search_lexical_with_fallback(&shards_dir, &query_text, top_k),
+                );
+                let mut scan = scan?;
+                let lexical = lexical?;
+                if lexical.skipped_due_to_parse_failure {
+                    tag_scan_results_as_fallback(&mut scan);
+                }
+                let lexical = filter_lexical_matches(lexical.matches, &active_ids);
+                let scan_results = scan;
+                let lexical_results = lexical_to_scored(lexical);
+                let mut result_sets = vec![
+                    (ResultSource::RawScan, 0.90, scan_results),
+                    (ResultSource::LexicalBm25, 1.00, lexical_results),
+                ];
+                let mut dense_sets = self.semantic_dense_result_sets(
+                    &query_text,
+                    &active_metadata,
+                    &active_ids,
+                    top_k,
+                )?;
+                if !dense_sets.is_empty() {
+                    dense_sets.append(&mut result_sets);
+                    result_sets = dense_sets;
+                }
+
+                weighted_rrf_fuse(result_sets, 20.0)
+            }
+        };
+
+        Ok(SearchOutcome {
+            results: self.finalize_search_results(query, results, top_k),
+            coverage,
+        })
+    }
+
+    #[cfg(not(feature = "semantic"))]
+    fn search_legacy(&self, query: &str, options: SearchOptions) -> Result<Vec<SearchResult>> {
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
+        let top_k = options.top_k.unwrap_or(10);
+        let metadata = self.metadata_snapshot()?;
+        if metadata.is_empty() {
+            return Ok(Vec::new());
+        }
+        let active_ids = self.active_wal_entry_ids()?;
+        let manifest_authoritative = self.manifest_path.metadata()?.len() > 0;
+        let active_metadata: Vec<WalMetaRecord> = metadata
+            .into_iter()
+            .filter(|entry| {
+                if manifest_authoritative {
+                    active_ids.contains(&entry.wal_entry_id)
+                } else {
+                    true
+                }
+            })
+            .collect();
+        if active_metadata.is_empty() {
+            return Ok(Vec::new());
+        }
+        let shards_dir = self.root.join("segments");
+        let query_kind = QueryKind::from_query(query);
+        let results = match query_kind {
+            QueryKind::Regex(pattern) => scan_regex_results(
+                &self.wal_content_path,
+                &active_metadata,
+                &pattern,
+                ResultSource::RawScan,
+            )?,
             QueryKind::ExactPhrase(phrase) => {
                 let (scan, lexical) = join(
                     || {
@@ -301,10 +581,7 @@ impl Index {
             }
             QueryKind::Default => {
                 let (scan, lexical) = join(
-                    || {
-                        tracing::debug!(query = %query, "running default scan layer");
-                        scan_query_results(&self.wal_content_path, &active_metadata, query)
-                    },
+                    || scan_query_results(&self.wal_content_path, &active_metadata, query),
                     || search_lexical_with_fallback(&shards_dir, query, top_k),
                 );
                 let mut scan = scan?;
@@ -313,135 +590,16 @@ impl Index {
                     tag_scan_results_as_fallback(&mut scan);
                 }
                 let lexical = filter_lexical_matches(lexical.matches, &active_ids);
-                let scan_results = scan;
-                let lexical_results = lexical_to_scored(lexical);
-                let result_sets = vec![
-                    (ResultSource::RawScan, 0.90, scan_results),
-                    (ResultSource::LexicalBm25, 1.00, lexical_results),
-                ];
-
-                #[cfg(feature = "semantic")]
-                let mut result_sets = result_sets;
-
-                #[cfg(feature = "semantic")]
-                if should_use_semantic(query) {
-                    if let Some(embedder) = self.load_embedder()? {
-                        let query_vec = embedder.embed_query(query)?;
-                        let mut embedded_set = roaring::RoaringTreemap::new();
-                        let mut semantic_sets = Vec::new();
-                        if self.root.join("vectors").exists() {
-                            let store = HotVectorStore::open_or_create(
-                                &self.root.join("vectors"),
-                                embedder.dimension(),
-                            )?;
-                            embedded_set = store.embedded_set().clone();
-                            let vector_matches = filter_vector_matches(
-                                store.search_knn(&query_vec, top_k)?,
-                                &active_ids,
-                            );
-                            if !vector_matches.is_empty() {
-                                semantic_sets.push((
-                                    ResultSource::HotVector,
-                                    1.00,
-                                    vector_matches_to_scored(vector_matches),
-                                ));
-                            }
-                        }
-                        let delta_entries: Vec<WalMetaRecord> = active_metadata
-                            .iter()
-                            .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
-                            .cloned()
-                            .collect();
-                        if !delta_entries.is_empty() && delta_entries.len() <= 50 {
-                            let chunk_batches: Result<Vec<Vec<SourceChunk>>> = delta_entries
-                                .iter()
-                                .map(|entry| {
-                                    self.read_entry_content(entry.wal_entry_id)
-                                        .map(|content| chunk_entry(entry, &content))
-                                })
-                                .collect();
-                            let delta_chunks: Vec<SourceChunk> =
-                                chunk_batches?.into_iter().flatten().collect();
-                            let refs: Vec<&str> =
-                                delta_chunks.iter().map(|chunk| chunk.chunk.text.as_str()).collect();
-                            let vectors = embedder.embed_batch(&refs)?;
-                            let delta = score_delta_vectors(&query_vec, &delta_chunks, &vectors, top_k);
-                            if !delta.is_empty() {
-                                semantic_sets.push((ResultSource::DeltaFallback, 0.85, delta));
-                            }
-                        }
-                        if !semantic_sets.is_empty() {
-                            semantic_sets.extend(result_sets);
-                            result_sets = semantic_sets;
-                        }
-                    }
-                }
-
-                weighted_rrf_fuse(result_sets, 20.0)
+                weighted_rrf_fuse(
+                    vec![
+                        (ResultSource::RawScan, 0.90, scan),
+                        (ResultSource::LexicalBm25, 1.00, lexical_to_scored(lexical)),
+                    ],
+                    20.0,
+                )
             }
         };
-
-        Ok(results
-            .into_iter()
-            .take(top_k)
-            .map(|result| {
-                let (line_range, snippet) = if result.snippet.is_empty() {
-                    self.read_entry_content(result.wal_entry_id)
-                        .ok()
-                        .map(|content| {
-                            #[cfg(feature = "semantic")]
-                            if matches!(
-                                result.source_layer,
-                                ResultSource::HotVector | ResultSource::DeltaFallback
-                            ) {
-                                snippet_from_byte_range(
-                                    &content,
-                                    (result.result_id.byte_start, result.result_id.byte_end),
-                                )
-                                .map(|snippet| (result.line_range, snippet))
-                                .unwrap_or_else(|_| {
-                                    snippet_for_query(
-                                        &content,
-                                        result.line_range,
-                                        query,
-                                        result.source_layer,
-                                    )
-                                })
-                            } else {
-                                snippet_for_query(
-                                    &content,
-                                    result.line_range,
-                                    query,
-                                    result.source_layer,
-                                )
-                            }
-                            #[cfg(not(feature = "semantic"))]
-                            {
-                                snippet_for_query(
-                                    &content,
-                                    result.line_range,
-                                    query,
-                                    result.source_layer,
-                                )
-                            }
-                        })
-                        .unwrap_or((result.line_range, String::new()))
-                } else {
-                    (result.line_range, result.snippet.clone())
-                };
-                SearchResult {
-                    line_number: line_range.0,
-                    line_range,
-                    chunk_id: result.chunk_id,
-                    byte_range: (result.result_id.byte_start, result.result_id.byte_end),
-                    source_path: result.source_path,
-                    snippet,
-                    score: result.score,
-                    source_layer: result.source_layer,
-                    wal_entry_id: result.wal_entry_id,
-                }
-            })
-            .collect())
+        Ok(self.finalize_search_results(query, results, top_k))
     }
 
     pub fn read_entry_content(&self, wal_entry_id: u64) -> Result<String> {
@@ -676,14 +834,208 @@ impl Index {
     fn total_chunk_count(&self) -> Result<usize> {
         self.chunk_count()
     }
+
+    fn finalize_search_results(
+        &self,
+        query: &str,
+        results: Vec<ScoredResult>,
+        top_k: usize,
+    ) -> Vec<SearchResult> {
+        results
+            .into_iter()
+            .take(top_k)
+            .map(|result| {
+                let (line_range, snippet) = if result.snippet.is_empty() {
+                    self.read_entry_content(result.wal_entry_id)
+                        .ok()
+                        .map(|content| {
+                            #[cfg(feature = "semantic")]
+                            if matches!(
+                                result.source_layer,
+                                ResultSource::HotVector
+                                    | ResultSource::DeltaFallback
+                                    | ResultSource::SemanticScan
+                            ) {
+                                snippet_from_byte_range(
+                                    &content,
+                                    (result.result_id.byte_start, result.result_id.byte_end),
+                                )
+                                .map(|snippet| (result.line_range, snippet))
+                                .unwrap_or_else(|_| {
+                                    snippet_for_query(
+                                        &content,
+                                        result.line_range,
+                                        query,
+                                        result.source_layer,
+                                    )
+                                })
+                            } else {
+                                snippet_for_query(
+                                    &content,
+                                    result.line_range,
+                                    query,
+                                    result.source_layer,
+                                )
+                            }
+                            #[cfg(not(feature = "semantic"))]
+                            {
+                                snippet_for_query(
+                                    &content,
+                                    result.line_range,
+                                    query,
+                                    result.source_layer,
+                                )
+                            }
+                        })
+                        .unwrap_or((result.line_range, String::new()))
+                } else {
+                    (result.line_range, result.snippet.clone())
+                };
+                SearchResult {
+                    line_number: line_range.0,
+                    line_range,
+                    chunk_id: result.chunk_id,
+                    byte_range: (result.result_id.byte_start, result.result_id.byte_end),
+                    source_path: result.source_path,
+                    snippet,
+                    score: result.score,
+                    source_layer: result.source_layer,
+                    wal_entry_id: result.wal_entry_id,
+                }
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "semantic")]
+    fn search_coverage(&self, active_metadata: &[WalMetaRecord]) -> Result<SearchCoverage> {
+        let total_chunks: usize = active_metadata
+            .iter()
+            .map(|entry| {
+                self.read_entry_content(entry.wal_entry_id)
+                    .map(|content| chunk_entry(entry, &content).len())
+                    .unwrap_or(0)
+            })
+            .sum();
+        let embedded_chunks = if self.root.join("vectors").exists() {
+            HotVectorStore::open_or_create(&self.root.join("vectors"), 384)?.len()
+        } else {
+            0
+        };
+        let delta_chunks = total_chunks.saturating_sub(embedded_chunks);
+        Ok(SearchCoverage {
+            total_chunks,
+            embedded_chunks,
+            delta_chunks,
+            skipped_due_to_budget: delta_chunks > 50,
+        })
+    }
+
+    #[cfg(feature = "semantic")]
+    fn semantic_dense_result_sets(
+        &self,
+        query: &str,
+        active_metadata: &[WalMetaRecord],
+        active_ids: &HashSet<u64>,
+        top_k: usize,
+    ) -> Result<Vec<(ResultSource, f64, Vec<ScoredResult>)>> {
+        if !should_use_semantic(query) {
+            return Ok(Vec::new());
+        }
+        let Some(embedder) = self.load_embedder()? else {
+            return Ok(Vec::new());
+        };
+
+        let query_vec = embedder.embed_query(query)?;
+        let mut embedded_set = roaring::RoaringTreemap::new();
+        let mut semantic_sets = Vec::new();
+        if self.root.join("vectors").exists() {
+            let store =
+                HotVectorStore::open_or_create(&self.root.join("vectors"), embedder.dimension())?;
+            embedded_set = store.embedded_set().clone();
+            let vector_matches =
+                filter_vector_matches(store.search_knn(&query_vec, top_k)?, active_ids);
+            if !vector_matches.is_empty() {
+                semantic_sets.push((
+                    ResultSource::HotVector,
+                    1.00,
+                    vector_matches_to_scored(vector_matches),
+                ));
+            }
+        }
+        let delta_entries: Vec<WalMetaRecord> = active_metadata
+            .iter()
+            .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
+            .cloned()
+            .collect();
+        if !delta_entries.is_empty() && delta_entries.len() <= 50 {
+            let chunk_batches: Result<Vec<Vec<SourceChunk>>> = delta_entries
+                .iter()
+                .map(|entry| {
+                    self.read_entry_content(entry.wal_entry_id)
+                        .map(|content| chunk_entry(entry, &content))
+                })
+                .collect();
+            let delta_chunks: Vec<SourceChunk> = chunk_batches?.into_iter().flatten().collect();
+            let refs: Vec<&str> = delta_chunks
+                .iter()
+                .map(|chunk| chunk.chunk.text.as_str())
+                .collect();
+            let vectors = embedder.embed_batch(&refs)?;
+            let delta = score_delta_vectors(&query_vec, &delta_chunks, &vectors, top_k);
+            if !delta.is_empty() {
+                semantic_sets.push((ResultSource::DeltaFallback, 0.85, delta));
+            }
+        }
+        Ok(semantic_sets)
+    }
+
+    #[cfg(feature = "semantic")]
+    fn load_sparse_encoder(&self) -> Result<Option<Arc<crate::sparse::SpladeEncoder>>> {
+        if let Some(cached) = self
+            .sparse_encoder
+            .read()
+            .map_err(|_| SieveError::LockPoisoned)?
+            .clone()
+        {
+            return Ok(Some(cached));
+        }
+
+        let manager = self.model_manager();
+        if !manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            return Ok(None);
+        }
+        let handle = match manager.ensure_sparse_model() {
+            Ok(handle) => handle,
+            Err(err) => {
+                tracing::debug!(error = %err, "sparse model unavailable; falling back to lexical planning");
+                return Ok(None);
+            }
+        };
+        match crate::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path) {
+            Ok(encoder) => {
+                let encoder = Arc::new(encoder);
+                *self
+                    .sparse_encoder
+                    .write()
+                    .map_err(|_| SieveError::LockPoisoned)? = Some(Arc::clone(&encoder));
+                Ok(Some(encoder))
+            }
+            Err(err) => {
+                tracing::debug!(error = %err, "failed to load SPLADE encoder; falling back to lexical planning");
+                Ok(None)
+            }
+        }
+    }
 }
 
+#[cfg(not(feature = "semantic"))]
 enum QueryKind<'a> {
     Regex(String),
     ExactPhrase(&'a str),
     Default,
 }
 
+#[cfg(not(feature = "semantic"))]
 impl<'a> QueryKind<'a> {
     fn from_query(query: &'a str) -> Self {
         if query.starts_with('/') && query.ends_with('/') && query.len() >= 2 {
@@ -975,7 +1327,8 @@ fn push_line_result(
     let snippet = String::from_utf8_lossy(&slice[line_start..line_end])
         .trim_end_matches('\r')
         .to_string();
-    let (result_id, chunk_id) = scan_result_identity(slice, entry, match_offset, line_start, line_end);
+    let (result_id, chunk_id) =
+        scan_result_identity(slice, entry, match_offset, line_start, line_end);
 
     results.push(ScoredResult {
         result_id,
@@ -1021,6 +1374,150 @@ fn scan_result_identity(
         },
         0,
     )
+}
+
+#[cfg(feature = "semantic")]
+fn semantic_scan_results(
+    wal_content_path: &Path,
+    metadata: &[WalMetaRecord],
+    semantic_query: &SemanticQuery,
+) -> Result<Vec<ScoredResult>> {
+    if metadata.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut realized_query = semantic_query.clone();
+    let patterns = realize_surfaces(&mut realized_query, &|term| static_df_frac(term));
+    if patterns.is_empty() {
+        return Ok(Vec::new());
+    }
+    let compiled = compile_scan_query(&patterns)?;
+
+    let content_file = File::open(wal_content_path)?;
+    content_file.lock_shared()?;
+    let mmap = unsafe { Mmap::map(&content_file)? };
+
+    let mut entry_bytes = Vec::new();
+    for entry in metadata {
+        let start = entry.byte_offset as usize;
+        let end = start + entry.byte_length as usize;
+        if end > mmap.len() {
+            continue;
+        }
+        entry_bytes.push((entry.wal_entry_id, &mmap[start..end]));
+    }
+
+    let (windows, df_counts) =
+        crate::semantic_scan::semantic_scan(&compiled, &entry_bytes, &realized_query);
+    let idf: Vec<f32> = realized_query
+        .terms
+        .iter()
+        .enumerate()
+        .map(|(idx, term)| {
+            compute_idf(
+                idx as crate::semantic_query::TermId,
+                df_counts.get(idx).copied().unwrap_or_default(),
+                metadata.len() as u32,
+                static_df_frac(&term.canonical),
+            )
+        })
+        .collect();
+
+    let entry_map: HashMap<u64, &WalMetaRecord> = metadata
+        .iter()
+        .map(|entry| (entry.wal_entry_id, entry))
+        .collect();
+    let mut scored = Vec::new();
+    for window in windows {
+        let score = score_window(&window, &realized_query, &idf) as f64;
+        if score <= 0.0 {
+            continue;
+        }
+        let Some(entry) = entry_map.get(&window.wal_entry_id).copied() else {
+            continue;
+        };
+        let start = entry.byte_offset as usize;
+        let end = start + entry.byte_length as usize;
+        if end > mmap.len() {
+            continue;
+        }
+        let slice = &mmap[start..end];
+        scored.push(semantic_window_to_scored(slice, entry, &window, score));
+    }
+
+    content_file.unlock()?;
+
+    scored.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    Ok(scored)
+}
+
+#[cfg(feature = "semantic")]
+fn semantic_window_to_scored(
+    slice: &[u8],
+    entry: &WalMetaRecord,
+    window: &crate::semantic_scan::WindowAccumulator,
+    score: f64,
+) -> ScoredResult {
+    let window_start = (window.window_start as usize).min(slice.len());
+    let window_end = (window.window_end as usize)
+        .min(slice.len())
+        .max(window_start);
+    let line_start = memrchr(b'\n', &slice[..window_start])
+        .map(|idx| idx + 1)
+        .unwrap_or(0);
+    let line_end = slice[window_end..]
+        .iter()
+        .position(|b| *b == b'\n')
+        .map(|offset| window_end + offset)
+        .unwrap_or(slice.len());
+    let line_number = entry.line_range_start + bytecount_newlines(&slice[..line_start]);
+    let line_end_number = line_number + bytecount_newlines(&slice[line_start..line_end]);
+    let content = String::from_utf8_lossy(slice);
+    let chunk = chunk_entry(entry, &content).into_iter().find(|chunk| {
+        let start = chunk.chunk.byte_start as usize;
+        let end = chunk.chunk.byte_end as usize;
+        window_start < end && window_end > start
+    });
+    let (result_id, chunk_id, line_range) = match chunk {
+        Some(chunk) => (
+            ResultId {
+                wal_entry_id: entry.wal_entry_id,
+                byte_start: chunk.chunk.byte_start,
+                byte_end: chunk.chunk.byte_end,
+            },
+            chunk.chunk.chunk_id,
+            chunk.chunk.line_range,
+        ),
+        None => (
+            ResultId {
+                wal_entry_id: entry.wal_entry_id,
+                byte_start: window.window_start,
+                byte_end: window.window_end,
+            },
+            0,
+            (line_number, line_end_number.max(line_number)),
+        ),
+    };
+
+    ScoredResult {
+        result_id,
+        source_path: entry.source_path.clone(),
+        line_range,
+        chunk_id,
+        snippet: String::from_utf8_lossy(&slice[line_start..line_end])
+            .trim_end_matches('\r')
+            .to_string(),
+        score,
+        source_layer: ResultSource::SemanticScan,
+        wal_entry_id: entry.wal_entry_id,
+    }
 }
 
 fn snippet_for_query(

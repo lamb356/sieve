@@ -10,8 +10,10 @@ use serde_json::json;
 use sieve_core::default_sieve_data_dir;
 use sieve_core::lexical::{build_pending_shards, load_indexed_entries};
 #[cfg(feature = "semantic")]
-use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME};
+use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME};
 use sieve_core::{blake3_hex, Index, SearchOptions, SearchResult};
+#[cfg(feature = "semantic")]
+use sieve_core::{plan_query, QueryPlan};
 
 #[derive(Debug, Parser)]
 #[command(name = "sieve-cli")]
@@ -36,6 +38,8 @@ enum Commands {
         format: OutputFormat,
         #[arg(long, default_value_t = 0)]
         context: usize,
+        #[arg(long)]
+        debug: bool,
     },
     Status {
         #[arg(long)]
@@ -81,7 +85,8 @@ fn run() -> Result<()> {
             top,
             format,
             context,
-        } => run_search(&query, index.as_deref(), top, format, context),
+            debug,
+        } => run_search(&query, index.as_deref(), top, format, context, debug),
         Commands::Status { index } => run_status(index.as_deref()),
         #[cfg(feature = "semantic")]
         Commands::DownloadModel { sparse, all } => run_download_model(sparse, all),
@@ -169,6 +174,7 @@ fn run_search(
     top: Option<usize>,
     format: OutputFormat,
     context: usize,
+    #[cfg_attr(not(feature = "semantic"), allow(unused_variables))] debug: bool,
 ) -> Result<()> {
     let index_root = resolve_index_root(index_override)?;
     if !is_index_root(&index_root) {
@@ -177,7 +183,43 @@ fn run_search(
     let index = Index::open_or_create(&index_root)
         .with_context(|| format!("failed to open index at {}", index_root.display()))?;
 
-    let results = index.search(query, SearchOptions { top_k: top })?;
+    #[cfg(feature = "semantic")]
+    let (results, debug_stats) = if debug {
+        let outcome = index.search_with_outcome(query, SearchOptions { top_k: top })?;
+        let manager = ModelManager::new(&default_sieve_data_dir());
+        let sparse = if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            manager.ensure_sparse_model().ok().and_then(|handle| {
+                sieve_core::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path)
+                    .ok()
+            })
+        } else {
+            None
+        };
+        let aliases = sieve_core::aliases::AliasLexicon::built_in();
+        let plan = plan_query(query, sparse.as_ref(), &aliases);
+        let stats = match &plan {
+            QueryPlan::Semantic(semantic) => Some(format!(
+                "semantic planner: mode=semantic groups={} terms={} anchors={} phrases={} coverage={}/{} delta={}",
+                semantic.groups.len(),
+                semantic.terms.len(),
+                semantic.terms.iter().filter(|term| term.is_anchor).count(),
+                semantic.phrases.len(),
+                outcome.coverage.embedded_chunks,
+                outcome.coverage.total_chunks,
+                outcome.coverage.delta_chunks,
+            )),
+            QueryPlan::Regex(_) => Some("semantic planner: mode=regex".to_string()),
+            QueryPlan::Exact(_) => Some("semantic planner: mode=exact".to_string()),
+            QueryPlan::Lexical(_) => Some("semantic planner: mode=lexical".to_string()),
+        };
+        (outcome.results, stats)
+    } else {
+        (index.search(query, SearchOptions { top_k: top })?, None)
+    };
+    #[cfg(not(feature = "semantic"))]
+    let (results, debug_stats): (Vec<SearchResult>, Option<String>) =
+        (index.search(query, SearchOptions { top_k: top })?, None);
+
     match format {
         OutputFormat::Text => {
             for result in &results {
@@ -221,6 +263,9 @@ fn run_search(
             println!("{}", serde_json::to_string_pretty(&rendered)?);
         }
     }
+    if let Some(stats) = debug_stats {
+        eprintln!("{stats}");
+    }
     Ok(())
 }
 
@@ -254,6 +299,9 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
     #[cfg(feature = "semantic")]
     {
         let semantic = index.semantic_status()?;
+        let manager = ModelManager::new(&default_sieve_data_dir());
+        let sparse_dir = manager.model_dir(DEFAULT_SPARSE_MODEL_NAME);
+        let sparse_ready = manager.is_cached(DEFAULT_SPARSE_MODEL_NAME);
         if semantic.vectors == 0 {
             println!("Vectors: none (run `sieve download-model`)");
         } else {
@@ -272,8 +320,14 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
             semantic.vectors, semantic.total_chunks, percent
         );
         if semantic.model_cached {
-            println!("Model: cached at {}", semantic.model_dir.display());
+            println!("Dense model: cached at {}", semantic.model_dir.display());
         }
+        println!(
+            "SPLADE model: {} ({})",
+            if sparse_ready { "available" } else { "missing" },
+            sparse_dir.display()
+        );
+        println!("Retrieval modes: scan, bm25, semantic-scan, dense-kNN, delta");
     }
     Ok(())
 }
@@ -282,18 +336,38 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
 fn run_download_model(sparse: bool, all: bool) -> Result<()> {
     let manager = ModelManager::new(&default_sieve_data_dir());
     if sparse {
-        println!("SPLADE model download not yet implemented (Phase 4 Batch 2)");
+        println!(
+            "SPLADE model: {} ({})",
+            if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+                "available"
+            } else {
+                "missing"
+            },
+            manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+        );
         return Ok(());
     }
     let dense = manager.ensure_dense_model()?;
     println!(
         "Model cached at {}",
-        dense.model_path.parent().unwrap_or(dense.model_path.as_path()).display()
+        dense
+            .model_path
+            .parent()
+            .unwrap_or(dense.model_path.as_path())
+            .display()
     );
     println!("Model file: {}", dense.model_path.display());
     println!("Tokenizer file: {}", dense.tokenizer_path.display());
     if all {
-        println!("SPLADE model download not yet implemented (Phase 4 Batch 2)");
+        println!(
+            "SPLADE model: {} ({})",
+            if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+                "available"
+            } else {
+                "missing"
+            },
+            manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+        );
     }
     Ok(())
 }

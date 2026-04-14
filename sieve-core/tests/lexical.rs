@@ -131,12 +131,40 @@ fn test_lexical_only_result_localizes_line_and_snippet() {
 }
 
 #[test]
+fn test_exact_phrase_query_preserves_matches_under_semantic_build() {
+    let dir = tempdir().unwrap();
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text(
+            "quoted.txt",
+            "first line\nauthentication middleware\nthird line\n",
+        )
+        .unwrap();
+    build_pending_shards(&index).unwrap();
+
+    let results = index
+        .search(
+            "\"authentication middleware\"",
+            SearchOptions { top_k: Some(10) },
+        )
+        .unwrap();
+
+    assert!(results.iter().any(|result| {
+        result.source_path == "quoted.txt"
+            && result.line_number == 2
+            && result.snippet.contains("authentication middleware")
+    }));
+}
+
+#[test]
 fn test_lexical_line_numbers_remain_absolute_after_chunking() {
     let dir = tempdir().unwrap();
     let index = Index::open_or_create(dir.path()).unwrap();
     let mut lines: Vec<String> = (1..=220).map(|i| format!("line-{i}")).collect();
     lines[179] = "semantic target lives here".to_string();
-    index.add_text("absolute.txt", format!("{}\n", lines.join("\n"))).unwrap();
+    index
+        .add_text("absolute.txt", format!("{}\n", lines.join("\n")))
+        .unwrap();
     build_pending_shards(&index).unwrap();
 
     let results = index
@@ -199,7 +227,11 @@ fn test_tantivy_chunk_indexing() {
                 .collect::<Vec<_>>()
         })
         .collect();
-    docs.sort_by_key(|doc| doc.get_first(chunk_id).and_then(|v| v.as_u64()).unwrap_or_default());
+    docs.sort_by_key(|doc| {
+        doc.get_first(chunk_id)
+            .and_then(|v| v.as_u64())
+            .unwrap_or_default()
+    });
 
     assert!(docs.len() > 1);
     for (idx, doc) in docs.iter().enumerate() {
@@ -208,8 +240,7 @@ fn test_tantivy_chunk_indexing() {
             Some("src/chunky.rs")
         );
         assert_eq!(
-            doc.get_first(wal_entry_id)
-                .and_then(|v| v.as_u64()),
+            doc.get_first(wal_entry_id).and_then(|v| v.as_u64()),
             Some(0)
         );
         assert_eq!(
@@ -250,7 +281,10 @@ fn test_merge_small_shards_preserves_ident_field() {
     let index = Index::open_or_create(dir.path()).unwrap();
     for i in 0..11 {
         index
-            .add_text(format!("src/{i}.rs"), format!("fn foo::bar_baz_{i}() {{}}\n"))
+            .add_text(
+                format!("src/{i}.rs"),
+                format!("fn foo::bar_baz_{i}() {{}}\n"),
+            )
             .unwrap();
         build_pending_shards(&index).unwrap();
     }
