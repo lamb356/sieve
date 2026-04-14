@@ -1,5 +1,5 @@
 [workspace]
-members = ["sieve-core", "sieve-cli"]
+members = ["sieve-core", "sieve-cli", "sieve-bench"]
 resolver = "2"
 
 [workspace.package]

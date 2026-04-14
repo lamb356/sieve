@@ -1,0 +1,26 @@
+[package]
+name = "sieve-bench"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "sieve-bench"
+path = "src/main.rs"
+
+[dependencies]
+sieve-core = { path = "../sieve-core" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+tempfile = "3"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+flate2 = "1"
+tar = "0.4"
+csv = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rayon = "1"
+rand = "0.8"
+zip = "2"
+ignore = "0.4"
