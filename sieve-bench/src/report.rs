@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::eval::{aggregate_metrics, compute_zero_prep_retention};
+use crate::eval::{aggregate_metrics, compute_zero_prep_retention, is_steady_deadline};
 use crate::types::{AggregateMetrics, EpisodeMetrics};
 
 #[derive(Debug, Serialize)]
@@ -286,7 +286,9 @@ fn collect_runners(metrics: &[AggregateMetrics]) -> Vec<String> {
 }
 
 fn format_deadline(deadline: Duration) -> String {
-    if deadline.as_millis() < 1000 {
+    if is_steady_deadline(deadline) {
+        "T+steady".to_string()
+    } else if deadline.as_millis() < 1000 {
         format!("{}ms", deadline.as_millis())
     } else {
         format!("{}s", deadline.as_secs())

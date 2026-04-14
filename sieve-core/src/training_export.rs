@@ -102,8 +102,12 @@ pub fn export_training_data(
 
     for raw_query in query_list {
         let semantic_query = compile_training_query(index, &raw_query, &aliases)?;
-        let (windows, _scan_timing) =
-            semantic_scan_scored_windows(index.wal_content_path(), &metadata, &semantic_query)?;
+        let (windows, _scan_timing) = semantic_scan_scored_windows(
+            index.wal_content_path(),
+            &metadata,
+            &semantic_query,
+            crate::semantic_scan::SemanticScanOptions::default(),
+        )?;
         for (window, scored) in windows.into_iter().take(top_k_windows.max(1)) {
             let entry_content = index
                 .read_entry_content(window.wal_entry_id)
@@ -172,7 +176,12 @@ fn compile_training_query(
     } else {
         None
     };
-    let plan = plan_query(raw_query, sparse.as_deref(), aliases);
+    let plan = plan_query(
+        raw_query,
+        sparse.as_deref(),
+        aliases,
+        &crate::SearchOptions::default(),
+    );
     Ok(match plan {
         QueryPlan::Semantic(query) => query,
         _ => Arc::new(fallback_semantic_query(raw_query)),

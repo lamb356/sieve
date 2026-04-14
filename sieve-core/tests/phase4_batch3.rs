@@ -18,6 +18,9 @@ use sieve_core::lexical::{
 use sieve_core::semantic_query::{
     GroupId, PhrasePattern, SemanticGroup, SemanticQuery, SemanticTerm, TermSource,
 };
+use sieve_core::semantic_scan::{
+    compile_scan_query_with_options, SemanticScanOptions,
+};
 use sieve_core::surface::{BoundaryMode, SurfaceVariant, VariantKind};
 use sieve_core::training_export::export_training_data;
 use sieve_core::{Index, SearchOptions, SearchSnapshot};
@@ -554,7 +557,13 @@ fn test_search_without_any_models_still_works() {
     sieve_core::lexical::build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("error_handling", SearchOptions { top_k: Some(10), ..Default::default() })
+        .search(
+            "error_handling",
+            SearchOptions {
+                top_k: Some(10),
+                ..Default::default()
+            },
+        )
         .unwrap();
     assert!(!results.is_empty());
     assert!(results.iter().all(|result| {
@@ -563,6 +572,118 @@ fn test_search_without_any_models_still_works() {
             ResultSource::RawScan | ResultSource::LexicalBm25 | ResultSource::Fused
         )
     }));
+}
+
+#[test]
+fn test_no_expansion_returns_literal_matches_only() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text("literal.rs", "failure handling keeps the pipeline stable\n")
+        .unwrap();
+    index
+        .add_text("expansion.rs", "exception mapping only\n")
+        .unwrap();
+
+    let results = index
+        .search(
+            "failure handling",
+            SearchOptions {
+                top_k: Some(10),
+                fresh_only: true,
+                no_expand: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert!(results.iter().any(|result| result.source_path == "literal.rs"));
+    assert!(results.iter().all(|result| result.source_path != "expansion.rs"));
+}
+
+#[test]
+fn test_no_window_scoring_ranks_by_hit_count() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text("sparse.rs", "error token\n")
+        .unwrap();
+    index
+        .add_text(
+            "dense.rs",
+            "error error error error error token\n",
+        )
+        .unwrap();
+
+    let results = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                fresh_only: true,
+                no_window_scoring: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .results;
+    assert!(!results.is_empty());
+    assert_eq!(results[0].source_path, "dense.rs");
+}
+
+#[test]
+fn test_no_df_filter_allows_all_terms() {
+    let mut query = mock_semantic_query();
+    let patterns = sieve_core::surface::realize_surfaces(&mut query, &|term| sieve_core::df_prior::static_df_frac(term));
+    let filtered = compile_scan_query_with_options(&patterns, SemanticScanOptions::default()).unwrap();
+    let unfiltered = compile_scan_query_with_options(
+        &patterns,
+        SemanticScanOptions {
+            no_df_filter: true,
+            no_window_scoring: false,
+        },
+    )
+    .unwrap();
+    assert!(unfiltered.patterns.len() >= filtered.patterns.len());
+}
+
+#[test]
+fn test_scan_only_excludes_indexed_layers() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text(
+            "stable.rs",
+            "error handling with retry and exception routing\n",
+        )
+        .unwrap();
+    sieve_core::lexical::build_pending_shards(&index).unwrap();
+    index
+        .add_text(
+            "fresh.rs",
+            "error handling stays fresh via graceful_degradation fallback\n",
+        )
+        .unwrap();
+
+    let outcome = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                fresh_only: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert!(outcome
+        .source_sets
+        .iter()
+        .all(|set| set.source == ResultSource::SemanticScan));
 }
 
 #[test]

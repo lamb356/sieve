@@ -1,74 +1,58 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use ignore::WalkBuilder;
+use sieve_core::aliases::AliasLexicon;
+use sieve_core::fusion::ResultSource;
 use sieve_core::lexical::build_pending_shards;
-use sieve_core::{Index, SearchOptions, SearchResult};
-use tracing::debug;
+use sieve_core::model::{ModelManager, DEFAULT_SPARSE_MODEL_NAME};
+use sieve_core::semantic_query::{compile_semantic_query_with_options, SemanticCompileOptions};
+use sieve_core::{default_sieve_data_dir, Index, SearchOptions};
 
 use crate::runner::Runner;
 use crate::types::{Episode, Hit};
 
-#[derive(Debug, Clone, Copy)]
-pub enum SieveMode {
-    Full,
-    ScanOnly,
-    RandomExpansion,
-}
-
-pub struct SieveRunner {
-    mode: SieveMode,
+pub struct SpladeTantivyRunner {
     index: Option<Index>,
+    sparse: Option<Arc<sieve_core::sparse::SpladeEncoder>>,
+    aliases: AliasLexicon,
 }
 
-impl Default for SieveRunner {
+impl Default for SpladeTantivyRunner {
     fn default() -> Self {
-        Self::full()
-    }
-}
-
-impl SieveRunner {
-    pub fn full() -> Self {
         Self {
-            mode: SieveMode::Full,
             index: None,
-        }
-    }
-
-    pub fn scan_only() -> Self {
-        Self {
-            mode: SieveMode::ScanOnly,
-            index: None,
-        }
-    }
-
-    pub fn random_expansion() -> Self {
-        Self {
-            mode: SieveMode::RandomExpansion,
-            index: None,
-        }
-    }
-
-    fn search_options(&self, k: usize) -> SearchOptions {
-        SearchOptions {
-            top_k: Some(k * 8),
-            fresh_only: matches!(self.mode, SieveMode::ScanOnly | SieveMode::RandomExpansion),
-            random_expansion: matches!(self.mode, SieveMode::RandomExpansion),
-            ..Default::default()
+            sparse: None,
+            aliases: AliasLexicon::built_in(),
         }
     }
 }
 
-impl Runner for SieveRunner {
+impl SpladeTantivyRunner {
+    fn load_sparse(&mut self) -> Result<Option<Arc<sieve_core::sparse::SpladeEncoder>>> {
+        if self.sparse.is_some() {
+            return Ok(self.sparse.clone());
+        }
+        let manager = ModelManager::new(&default_sieve_data_dir());
+        if !manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            return Ok(None);
+        }
+        let handle = manager.ensure_sparse_model()?;
+        let encoder = sieve_core::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path)
+            .ok()
+            .map(Arc::new);
+        self.sparse = encoder.clone();
+        Ok(encoder)
+    }
+}
+
+impl Runner for SpladeTantivyRunner {
     fn name(&self) -> &'static str {
-        match self.mode {
-            SieveMode::Full => "sieve",
-            SieveMode::ScanOnly => "sieve-scan",
-            SieveMode::RandomExpansion => "sieve-random",
-        }
+        "splade-bm25"
     }
 
     fn prepare_stable(&mut self, ep: &Episode) -> Result<()> {
@@ -79,14 +63,13 @@ impl Runner for SieveRunner {
         let index = Index::open_or_create(&index_root)?;
         index_directory(&index, &ep.stable_root, &ep.corpus_root)?;
         build_pending_shards(&index)?;
-        let _ = index.embed_pending(32)?;
-        index.warm_search_models(false)?;
         self.index = Some(index);
+        let _ = self.load_sparse()?;
         Ok(())
     }
 
     fn begin_fresh_arrival(&mut self, ep: &Episode) -> Result<()> {
-        let index = self.index.as_ref().context("sieve runner index missing")?;
+        let index = self.index.as_ref().context("splade runner index missing")?;
         let rel = ep
             .fresh_live_root
             .strip_prefix(&ep.corpus_root)
@@ -100,33 +83,44 @@ impl Runner for SieveRunner {
     }
 
     fn wait_for_steady_state(&mut self, _ep: &Episode) -> Result<()> {
-        let index = self.index.as_ref().context("sieve runner index missing")?;
+        let index = self.index.as_ref().context("splade runner index missing")?;
         let _ = build_pending_shards(index)?;
-        let _ = index.embed_pending(32)?;
         Ok(())
     }
 
-    fn search_at_deadline(&mut self, ep: &Episode, _deadline: Duration, k: usize) -> Result<Vec<Hit>> {
-        let index = self.index.as_ref().context("sieve runner index missing")?;
+    fn search_at_deadline(
+        &mut self,
+        ep: &Episode,
+        _deadline: Duration,
+        k: usize,
+    ) -> Result<Vec<Hit>> {
+        let Some(sparse) = self.load_sparse()? else {
+            return Ok(Vec::new());
+        };
+        let Some(index) = self.index.as_ref() else {
+            return Ok(Vec::new());
+        };
+        let query = compile_semantic_query_with_options(
+            &ep.query,
+            sparse.as_ref(),
+            &self.aliases,
+            SemanticCompileOptions::default(),
+        )?;
         let started = Instant::now();
-        let outcome = index.search_with_outcome(&ep.query, self.search_options(k))?;
-        if let Some(debug_info) = &outcome.debug {
-            debug!(
-                "sieve benchmark query timing: runner={} episode={} query={:?} mode={} splade_expand_ms={} aho_compile_ms={} semantic_scan_ms={} raw_scan_ms={} tantivy_query_ms={} dense_knn_ms={} rrf_fusion_ms={}",
-                self.name(),
-                ep.id,
-                ep.query,
-                debug_info.plan_mode,
-                debug_info.timings.splade_expand.as_millis(),
-                debug_info.timings.aho_compile.as_millis(),
-                debug_info.timings.semantic_scan.as_millis(),
-                debug_info.timings.raw_scan.as_millis(),
-                debug_info.timings.tantivy_query.as_millis(),
-                debug_info.timings.dense_knn.as_millis(),
-                debug_info.timings.rrf_fusion.as_millis(),
-            );
-        }
-        Ok(collapse_results(&outcome.results, k, started.elapsed()))
+        let outcome = index.search_semantic_query(
+            &query,
+            SearchOptions {
+                top_k: Some(k * 8),
+                ..Default::default()
+            },
+        )?;
+        let scored = outcome
+            .source_sets
+            .into_iter()
+            .find(|set| set.source == ResultSource::SpladeBm25)
+            .map(|set| set.results)
+            .unwrap_or_default();
+        Ok(collapse_scored(scored, k, started.elapsed()))
     }
 
     fn cleanup(&mut self) -> Result<()> {
@@ -164,10 +158,14 @@ fn index_directory(index: &Index, source_root: &Path, corpus_root: &Path) -> Res
     Ok(())
 }
 
-fn collapse_results(results: &[SearchResult], k: usize, latency: Duration) -> Vec<Hit> {
+fn collapse_scored(
+    results: Vec<sieve_core::fusion::ScoredResult>,
+    k: usize,
+    latency: Duration,
+) -> Vec<Hit> {
     let mut best: BTreeMap<PathBuf, f32> = BTreeMap::new();
     for result in results {
-        let path = PathBuf::from(&result.source_path);
+        let path = PathBuf::from(result.source_path);
         let score = result.score as f32;
         match best.get_mut(&path) {
             Some(existing) => {

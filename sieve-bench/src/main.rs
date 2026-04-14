@@ -10,6 +10,7 @@ use sieve_bench::report::{json_report, print_report};
 use sieve_bench::ripgrep_runner::RipgrepRunner;
 use sieve_bench::runner::Runner;
 use sieve_bench::sieve_runner::SieveRunner;
+use sieve_bench::splade_runner::SpladeTantivyRunner;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Clone, Parser)]
@@ -51,7 +52,12 @@ fn main() -> Result<()> {
         cli.n_fresh,
     )?;
 
-    let mut runners: Vec<Box<dyn Runner>> = vec![Box::new(SieveRunner::default())];
+    let mut runners: Vec<Box<dyn Runner>> = vec![
+        Box::new(SieveRunner::full()),
+        Box::new(SieveRunner::scan_only()),
+        Box::new(SieveRunner::random_expansion()),
+        Box::new(SpladeTantivyRunner::default()),
+    ];
     if !cli.skip_ripgrep {
         runners.push(Box::new(RipgrepRunner::new()));
     }

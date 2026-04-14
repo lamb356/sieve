@@ -8,6 +8,12 @@ use crate::window_score::{compute_idf, score_window};
 
 pub const MAX_PATTERN_DF: f32 = 0.08;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SemanticScanOptions {
+    pub no_df_filter: bool,
+    pub no_window_scoring: bool,
+}
+
 pub struct CompiledScanQuery {
     pub ac: aho_corasick::AhoCorasick,
     pub patterns: Vec<PatternMeta>,
@@ -23,8 +29,17 @@ pub struct PatternMeta {
 }
 
 pub fn compile_scan_query(patterns: &[RealizedPattern]) -> crate::Result<CompiledScanQuery> {
+    compile_scan_query_with_options(patterns, SemanticScanOptions::default())
+}
+
+pub fn compile_scan_query_with_options(
+    patterns: &[RealizedPattern],
+    options: SemanticScanOptions,
+) -> crate::Result<CompiledScanQuery> {
     let mut filtered_patterns = patterns.to_vec();
-    filter_high_df_patterns(&mut filtered_patterns);
+    if !options.no_df_filter {
+        filter_high_df_patterns(&mut filtered_patterns);
+    }
     if filtered_patterns.is_empty() {
         return Err(crate::SieveError::Message(
             "semantic scan requires at least one pattern".to_string(),
@@ -123,6 +138,22 @@ pub fn semantic_scan(
     query: &crate::semantic_query::SemanticQuery,
     top_k: usize,
 ) -> (Vec<ScoredWindow>, Vec<u32>) {
+    semantic_scan_with_options(
+        compiled,
+        entries,
+        query,
+        top_k,
+        SemanticScanOptions::default(),
+    )
+}
+
+pub fn semantic_scan_with_options(
+    compiled: &CompiledScanQuery,
+    entries: &[(u64, &[u8])],
+    query: &crate::semantic_query::SemanticQuery,
+    top_k: usize,
+    options: SemanticScanOptions,
+) -> (Vec<ScoredWindow>, Vec<u32>) {
     let mut df_counts = vec![0u32; query.terms.len()];
     let mut entry_events = Vec::with_capacity(entries.len());
 
@@ -154,6 +185,45 @@ pub fn semantic_scan(
             )
         })
         .collect();
+
+    if options.no_window_scoring {
+        let mut windows = entry_events
+            .into_iter()
+            .filter_map(|(wal_entry_id, hay_len, events)| {
+                if events.is_empty() {
+                    return None;
+                }
+                let has_anchor = events.iter().any(|event| event.is_anchor);
+                if !has_anchor {
+                    return None;
+                }
+                let window_start = events.iter().map(|event| event.byte_start).min().unwrap_or(0);
+                let window_end = events
+                    .iter()
+                    .map(|event| event.byte_end)
+                    .max()
+                    .unwrap_or(hay_len as u32)
+                    .max(window_start + 1);
+                Some(ScoredWindow {
+                    score: events.len() as f32,
+                    wal_entry_id,
+                    window_start,
+                    window_end,
+                    events,
+                    has_anchor,
+                })
+            })
+            .collect::<Vec<_>>();
+        windows.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| left.wal_entry_id.cmp(&right.wal_entry_id))
+                .then_with(|| left.window_start.cmp(&right.window_start))
+        });
+        windows.truncate(top_k.max(1));
+        return (windows, df_counts);
+    }
 
     let mut heap: BinaryHeap<Reverse<ScoredWindow>> = BinaryHeap::new();
     let limit = top_k.max(1);

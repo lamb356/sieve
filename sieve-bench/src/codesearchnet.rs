@@ -9,6 +9,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use serde::Deserialize;
 
+use crate::eval::T_STEADY_DEADLINE;
 use crate::types::Episode;
 
 const DATASET_NAME: &str = "claudios/code_search_net";
@@ -139,6 +140,7 @@ impl CodeSearchNetTrack {
                     Duration::from_millis(500),
                     Duration::from_secs(1),
                     Duration::from_secs(5),
+                    T_STEADY_DEADLINE,
                 ],
             });
         }

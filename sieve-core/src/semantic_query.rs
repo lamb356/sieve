@@ -8,6 +8,12 @@ pub const MIN_TERM_WEIGHT_RATIO: f32 = 0.18;
 pub const MIN_AUX_GROUP_RATIO: f32 = 0.35;
 pub const SEED_CLAIM_RATIO: f32 = 0.20;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SemanticCompileOptions {
+    pub no_expand: bool,
+    pub random_expansion: bool,
+}
+
 pub type TermId = u16;
 pub type GroupId = u16;
 pub type PhraseId = u16;
@@ -79,11 +85,26 @@ pub fn compile_semantic_query(
     sparse: &crate::sparse::SpladeEncoder,
     aliases: &crate::aliases::AliasLexicon,
 ) -> crate::Result<SemanticQuery> {
+    compile_semantic_query_with_options(
+        raw_query,
+        sparse,
+        aliases,
+        SemanticCompileOptions::default(),
+    )
+}
+
+pub fn compile_semantic_query_with_options(
+    raw_query: &str,
+    sparse: &crate::sparse::SpladeEncoder,
+    aliases: &crate::aliases::AliasLexicon,
+    options: SemanticCompileOptions,
+) -> crate::Result<SemanticQuery> {
     compile_semantic_query_with(
         raw_query,
         &|text| sparse.encode(text),
         &|vocab_id| sparse.vocab_piece(vocab_id).map(str::to_string),
         aliases,
+        options,
     )
 }
 
@@ -92,6 +113,7 @@ fn compile_semantic_query_with<E, V>(
     encode: &E,
     vocab_piece: &V,
     aliases: &crate::aliases::AliasLexicon,
+    options: SemanticCompileOptions,
 ) -> crate::Result<SemanticQuery>
 where
     E: Fn(&str) -> crate::Result<Vec<(u32, f32)>>,
@@ -110,6 +132,9 @@ where
             query_order: Vec::new(),
             total_group_importance: 0.0,
         });
+    }
+    if options.no_expand {
+        return Ok(seed_only_query(raw_query, normalized_query, &seed_texts));
     }
 
     let full_weights = encode(&normalized_query)?;
@@ -201,6 +226,13 @@ where
             Some((vocab_id, raw_weight, piece))
         })
         .collect::<Vec<_>>();
+    if options.random_expansion {
+        for (_, raw_weight, piece) in &mut retained {
+            let floor = MIN_TERM_WEIGHT_RATIO * full_max_weight;
+            let rand = deterministic_unit_interval(raw_query, piece);
+            *raw_weight = floor + (full_max_weight - floor).max(0.0) * rand;
+        }
+    }
     retained.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     retained.truncate(MAX_TERMS);
 
@@ -571,6 +603,21 @@ fn normalize_piece(piece: &str) -> String {
         .to_ascii_lowercase()
 }
 
+fn deterministic_unit_interval(raw_query: &str, piece: &str) -> f32 {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(raw_query.as_bytes());
+    hasher.update(&[0]);
+    hasher.update(piece.as_bytes());
+    let bytes = hasher.finalize();
+    let n = u32::from_le_bytes([
+        bytes.as_bytes()[0],
+        bytes.as_bytes()[1],
+        bytes.as_bytes()[2],
+        bytes.as_bytes()[3],
+    ]);
+    n as f32 / u32::MAX as f32
+}
+
 fn is_special_token(piece: &str) -> bool {
     matches!(piece, "[PAD]" | "[UNK]" | "[CLS]" | "[SEP]" | "[MASK]")
         || (piece.starts_with('[') && piece.ends_with(']'))
@@ -606,7 +653,9 @@ fn is_stopword(token: &str) -> bool {
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use super::{compile_semantic_query_with, normalize_query, TermSource};
+    use super::{
+        compile_semantic_query_with, normalize_query, SemanticCompileOptions, TermSource,
+    };
 
     fn mock_vocab(id: u32) -> Option<String> {
         Some(
@@ -637,6 +686,7 @@ mod tests {
             },
             &mock_vocab,
             &aliases,
+            SemanticCompileOptions::default(),
         )
         .unwrap();
         assert_eq!(query.seeds.len(), 2);
@@ -670,6 +720,7 @@ mod tests {
             },
             &mock_vocab,
             &aliases,
+            SemanticCompileOptions::default(),
         )
         .unwrap();
         assert_eq!(query.seeds.len(), 2);
@@ -710,6 +761,7 @@ mod tests {
             },
             &mock_vocab,
             &aliases,
+            SemanticCompileOptions::default(),
         )
         .unwrap();
         assert_eq!(calls.load(Ordering::SeqCst), 1);

@@ -5,7 +5,7 @@ use std::time::Duration;
 use sieve_bench::codesearchnet::CodeSearchNetTrack;
 use sieve_bench::eval::{
     compute_hit_at_k, compute_mrr_at_k, compute_recall_at_k, compute_zero_prep_retention,
-    run_benchmark,
+    run_benchmark, T_STEADY_DEADLINE,
 };
 use sieve_bench::ripgrep_runner::tokenize_query;
 use sieve_bench::runner::Runner;
@@ -153,6 +153,53 @@ impl Runner for FastRelevantRunner {
     }
 }
 
+#[derive(Default)]
+struct SteadyOnlyRunner {
+    waited: bool,
+}
+
+impl Runner for SteadyOnlyRunner {
+    fn name(&self) -> &'static str {
+        "steady-only"
+    }
+
+    fn prepare_stable(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn begin_fresh_arrival(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        self.waited = false;
+        Ok(())
+    }
+
+    fn wait_for_steady_state(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        self.waited = true;
+        Ok(())
+    }
+
+    fn search_at_deadline(
+        &mut self,
+        ep: &Episode,
+        deadline: Duration,
+        _k: usize,
+    ) -> anyhow::Result<Vec<Hit>> {
+        if self.waited && deadline == T_STEADY_DEADLINE {
+            Ok(vec![Hit {
+                path: ep.relevant_paths.iter().next().unwrap().clone(),
+                score: 1.0,
+                rank: 1,
+                latency: Duration::from_millis(1),
+            }])
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn cleanup(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
 #[test]
 fn test_run_benchmark_accepts_fast_results_before_deadline() {
     let dir = tempdir().unwrap();
@@ -176,4 +223,30 @@ fn test_run_benchmark_accepts_fast_results_before_deadline() {
     let metrics = run_benchmark(&[ep], &mut runners, 5);
     assert!(metrics.iter().all(|m| m.hit_at_5));
     assert!(metrics.iter().all(|m| (m.recall_at_5 - 1.0).abs() < 1e-6));
+}
+
+#[test]
+fn test_run_benchmark_waits_for_t_steady() {
+    let dir = tempdir().unwrap();
+    let corpus_root = dir.path().join("corpus");
+    let stage_dir = dir.path().join("stage");
+    std::fs::create_dir_all(&corpus_root).unwrap();
+    std::fs::create_dir_all(&stage_dir).unwrap();
+    let staged = stage_dir.join("fresh.py");
+    std::fs::write(&staged, "def answer():\n    return 42\n").unwrap();
+    let ep = Episode {
+        id: "ep-steady".to_string(),
+        query: "answer function".to_string(),
+        corpus_root: corpus_root.clone(),
+        stable_root: corpus_root.clone(),
+        fresh_stage_root: staged,
+        fresh_live_root: corpus_root.join("fresh.py"),
+        relevant_paths: BTreeSet::from([PathBuf::from("fresh.py")]),
+        deadlines: vec![Duration::from_millis(0), T_STEADY_DEADLINE],
+    };
+    let mut runners: Vec<Box<dyn Runner>> = vec![Box::new(SteadyOnlyRunner::default())];
+    let metrics = run_benchmark(&[ep], &mut runners, 5);
+    assert_eq!(metrics.len(), 2);
+    assert!(!metrics[0].hit_at_5);
+    assert!(metrics[1].hit_at_5);
 }

@@ -7,6 +7,12 @@ use std::time::{Duration, Instant};
 use crate::runner::Runner;
 use crate::types::{AggregateMetrics, Episode, EpisodeMetrics, Hit};
 
+pub const T_STEADY_DEADLINE: Duration = Duration::from_secs(30);
+
+pub fn is_steady_deadline(deadline: Duration) -> bool {
+    deadline == T_STEADY_DEADLINE
+}
+
 pub fn run_benchmark(
     episodes: &[Episode],
     runners: &mut [Box<dyn Runner>],
@@ -25,16 +31,22 @@ pub fn run_benchmark(
                 .begin_fresh_arrival(ep)
                 .expect("begin_fresh_arrival failed");
             for deadline in &ep.deadlines {
-                let elapsed = t0.elapsed();
-                if *deadline > elapsed {
-                    thread::sleep(*deadline - elapsed);
+                if is_steady_deadline(*deadline) {
+                    runner
+                        .wait_for_steady_state(ep)
+                        .expect("wait_for_steady_state failed");
+                } else {
+                    let elapsed = t0.elapsed();
+                    if *deadline > elapsed {
+                        thread::sleep(*deadline - elapsed);
+                    }
                 }
                 let started = Instant::now();
                 let mut hits = runner
                     .search_at_deadline(ep, *deadline, k)
                     .unwrap_or_default();
                 let latency = started.elapsed();
-                if latency > *deadline {
+                if !is_steady_deadline(*deadline) && latency > *deadline {
                     hits.clear();
                 }
                 out.push(EpisodeMetrics {

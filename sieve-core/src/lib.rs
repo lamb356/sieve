@@ -58,7 +58,7 @@ use crate::model::{ModelManager, DEFAULT_MODEL_NAME};
 #[cfg(feature = "semantic")]
 use crate::semantic_query::SemanticQuery;
 #[cfg(feature = "semantic")]
-use crate::semantic_scan::compile_scan_query;
+use crate::semantic_scan::{compile_scan_query_with_options, SemanticScanOptions};
 #[cfg(feature = "semantic")]
 use crate::surface::realize_surfaces;
 #[cfg(feature = "semantic")]
@@ -111,6 +111,14 @@ pub struct SearchOptions {
     pub fresh_only: bool,
     #[cfg(feature = "semantic")]
     pub experimental_rerank: bool,
+    #[cfg(feature = "semantic")]
+    pub no_expand: bool,
+    #[cfg(feature = "semantic")]
+    pub no_window_scoring: bool,
+    #[cfg(feature = "semantic")]
+    pub no_df_filter: bool,
+    #[cfg(feature = "semantic")]
+    pub random_expansion: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +148,7 @@ pub fn plan_query(
     raw: &str,
     sparse: Option<&crate::sparse::SpladeEncoder>,
     aliases: &crate::aliases::AliasLexicon,
+    options: &SearchOptions,
 ) -> QueryPlan {
     if raw.starts_with('/') && raw.ends_with('/') && raw.len() >= 2 {
         return QueryPlan::Regex(raw[1..raw.len() - 1].to_string());
@@ -150,10 +159,16 @@ pub fn plan_query(
     let Some(sparse) = sparse else {
         return QueryPlan::Lexical(raw.to_string());
     };
-    match crate::semantic_query::compile_semantic_query(raw, sparse, aliases) {
-        Ok(query) if query.terms.iter().any(|term| term.is_anchor) => {
-            QueryPlan::Semantic(Arc::new(query))
-        }
+    match crate::semantic_query::compile_semantic_query_with_options(
+        raw,
+        sparse,
+        aliases,
+        crate::semantic_query::SemanticCompileOptions {
+            no_expand: options.no_expand,
+            random_expansion: options.random_expansion,
+        },
+    ) {
+        Ok(query) if query.terms.iter().any(|term| term.is_anchor) => QueryPlan::Semantic(Arc::new(query)),
         _ => QueryPlan::Lexical(raw.to_string()),
     }
 }
@@ -458,10 +473,10 @@ impl Index {
         let plan = if (query.starts_with('/') && query.ends_with('/') && query.len() >= 2)
             || (query.starts_with('"') && query.ends_with('"') && query.len() >= 2)
         {
-            plan_query(query, None, &aliases)
+            plan_query(query, None, &aliases, &options)
         } else {
             let sparse = self.load_sparse_encoder()?;
-            plan_query(query, sparse.as_deref(), &aliases)
+            plan_query(query, sparse.as_deref(), &aliases, &options)
         };
         timings.splade_expand = plan_started.elapsed();
         let coverage = if include_coverage {
@@ -557,6 +572,10 @@ impl Index {
                         top_k: Some(top_k),
                         fresh_only: options.fresh_only,
                         experimental_rerank: options.experimental_rerank,
+                        no_expand: options.no_expand,
+                        no_window_scoring: options.no_window_scoring,
+                        no_df_filter: options.no_df_filter,
+                        random_expansion: options.random_expansion,
                     },
                 )?;
                 if let Some(debug) = &semantic_outcome.debug {
@@ -1066,8 +1085,15 @@ impl Index {
             }
         }
         if !fresh_metadata.is_empty() {
-            let (semantic_results, scan_timing) =
-                semantic_scan_results_with_timing(&self.wal_content_path, &fresh_metadata, query)?;
+            let (semantic_results, scan_timing) = semantic_scan_results_with_timing(
+                &self.wal_content_path,
+                &fresh_metadata,
+                query,
+                crate::semantic_scan::SemanticScanOptions {
+                    no_df_filter: options.no_df_filter,
+                    no_window_scoring: options.no_window_scoring,
+                },
+            )?;
             timings.aho_compile += scan_timing.aho_compile;
             timings.semantic_scan += scan_timing.semantic_scan;
             if !semantic_results.is_empty() {
@@ -1219,8 +1245,12 @@ impl Index {
             Err(_) => return Ok(Vec::new()),
         };
 
-        let (windows, _scan_timing) =
-            semantic_scan_scored_windows(&self.wal_content_path, fresh_metadata, query)?;
+        let (windows, _scan_timing) = semantic_scan_scored_windows(
+            &self.wal_content_path,
+            fresh_metadata,
+            query,
+            SemanticScanOptions::default(),
+        )?;
         if windows.is_empty() {
             return Ok(Vec::new());
         }
@@ -1746,8 +1776,10 @@ fn semantic_scan_results_with_timing(
     wal_content_path: &Path,
     metadata: &[WalMetaRecord],
     semantic_query: &SemanticQuery,
+    options: crate::semantic_scan::SemanticScanOptions,
 ) -> Result<(Vec<ScoredResult>, SemanticScanTiming)> {
-    let (windows, timing) = semantic_scan_scored_windows(wal_content_path, metadata, semantic_query)?;
+    let (windows, timing) =
+        semantic_scan_scored_windows(wal_content_path, metadata, semantic_query, options)?;
     Ok((
         windows.into_iter().map(|(_, scored)| scored).collect(),
         timing,
@@ -1759,6 +1791,7 @@ pub(crate) fn semantic_scan_scored_windows(
     wal_content_path: &Path,
     metadata: &[WalMetaRecord],
     semantic_query: &SemanticQuery,
+    options: crate::semantic_scan::SemanticScanOptions,
 ) -> Result<(Vec<(crate::semantic_scan::ScoredWindow, ScoredResult)>, SemanticScanTiming)> {
     if metadata.is_empty() {
         return Ok((Vec::new(), SemanticScanTiming::default()));
@@ -1770,7 +1803,7 @@ pub(crate) fn semantic_scan_scored_windows(
         return Ok((Vec::new(), SemanticScanTiming::default()));
     }
     let compile_started = Instant::now();
-    let compiled = compile_scan_query(&patterns)?;
+    let compiled = compile_scan_query_with_options(&patterns, options)?;
     let aho_compile = compile_started.elapsed();
 
     let content_file = File::open(wal_content_path)?;
@@ -1788,8 +1821,13 @@ pub(crate) fn semantic_scan_scored_windows(
     }
 
     let scan_started = Instant::now();
-    let (windows, _df_counts) =
-        crate::semantic_scan::semantic_scan(&compiled, &entry_bytes, &realized_query, 64);
+    let (windows, _df_counts) = crate::semantic_scan::semantic_scan_with_options(
+        &compiled,
+        &entry_bytes,
+        &realized_query,
+        64,
+        options,
+    );
     let semantic_scan = scan_started.elapsed();
 
     let entry_map: HashMap<u64, &WalMetaRecord> = metadata

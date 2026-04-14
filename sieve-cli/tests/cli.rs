@@ -418,3 +418,59 @@ fn test_search_accepts_experimental_rerank_without_debug() {
         .unwrap();
     assert!(output.status.success());
 }
+
+#[cfg(feature = "semantic")]
+#[test]
+fn test_index_no_embed_skips_embedding_pass() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("handlers.rs"),
+        "fn authentication_middleware() {}\n",
+    )
+    .unwrap();
+
+    let output = Command::new(sieve_bin())
+        .args(["index", dir.path().to_str().unwrap(), "--no-embed"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("Embedding:"));
+
+    let status = Command::new(sieve_bin())
+        .current_dir(dir.path())
+        .args(["status"])
+        .output()
+        .unwrap();
+    assert!(status.status.success());
+    let status_out = String::from_utf8_lossy(&status.stdout);
+    assert!(status_out.contains("Dense vectors: none"));
+}
+
+#[cfg(feature = "semantic")]
+#[test]
+fn test_search_explain_prints_provenance() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("handlers.rs"),
+        "fn authentication_middleware() {}\n",
+    )
+    .unwrap();
+
+    let index_status = Command::new(sieve_bin())
+        .args(["index", dir.path().to_str().unwrap(), "--no-embed"])
+        .status()
+        .unwrap();
+    assert!(index_status.success());
+
+    let output = Command::new(sieve_bin())
+        .current_dir(dir.path())
+        .args(["search", "authentication", "--explain"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("provenance:"));
+    assert!(stdout.contains("chunk_id="));
+    assert!(stdout.contains("byte_range="));
+}

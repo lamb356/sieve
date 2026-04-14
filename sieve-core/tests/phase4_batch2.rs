@@ -13,7 +13,7 @@ use sieve_core::surface::{
     realize_surfaces, BoundaryMode, RealizedPattern, SurfaceVariant, VariantKind,
 };
 use sieve_core::window_score::{compute_idf, score_window};
-use sieve_core::{default_sieve_data_dir, plan_query, QueryPlan};
+use sieve_core::{default_sieve_data_dir, plan_query, QueryPlan, SearchOptions};
 
 fn sample_query() -> SemanticQuery {
     SemanticQuery {
@@ -368,7 +368,12 @@ fn test_query_plan_selects_semantic() {
         sieve_core::sparse::SpladeEncoder::load(&sparse.model_path, &sparse.tokenizer_path)
             .unwrap();
     let aliases = AliasLexicon::built_in();
-    let plan = plan_query("failure handling", Some(&encoder), &aliases);
+    let plan = plan_query(
+        "failure handling",
+        Some(&encoder),
+        &aliases,
+        &SearchOptions::default(),
+    );
     assert!(matches!(plan, QueryPlan::Semantic(_)));
 }
 

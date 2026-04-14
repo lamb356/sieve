@@ -118,6 +118,13 @@ impl Runner for EmbedKnnRunner {
             .collect())
     }
 
+    fn wait_for_steady_state(&mut self, _ep: &Episode) -> Result<()> {
+        if let Some(handle) = self.background.take() {
+            let _ = handle.join();
+        }
+        Ok(())
+    }
+
     fn cleanup(&mut self) -> Result<()> {
         if let Some(handle) = self.background.take() {
             let _ = handle.join();

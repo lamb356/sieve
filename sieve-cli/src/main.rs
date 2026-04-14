@@ -29,6 +29,9 @@ struct Cli {
 enum Commands {
     Index {
         path: PathBuf,
+        #[cfg(feature = "semantic")]
+        #[arg(long)]
+        no_embed: bool,
     },
     Search {
         query: String,
@@ -43,7 +46,18 @@ enum Commands {
         #[arg(long)]
         debug: bool,
         #[arg(long)]
+        explain: bool,
+        #[arg(long)]
         experimental_rerank: bool,
+        #[cfg(feature = "semantic")]
+        #[arg(long)]
+        no_expand: bool,
+        #[cfg(feature = "semantic")]
+        #[arg(long)]
+        no_window_scoring: bool,
+        #[cfg(feature = "semantic")]
+        #[arg(long)]
+        no_df_filter: bool,
     },
     Status {
         #[arg(long)]
@@ -91,7 +105,15 @@ fn init_tracing() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Index { path } => run_index(&path),
+        Commands::Index {
+            path,
+            #[cfg(feature = "semantic")]
+            no_embed,
+        } => run_index(
+            &path,
+            #[cfg(feature = "semantic")]
+            no_embed,
+        ),
         Commands::Search {
             query,
             index,
@@ -99,7 +121,14 @@ fn run() -> Result<()> {
             format,
             context,
             debug,
+            explain,
             experimental_rerank,
+            #[cfg(feature = "semantic")]
+            no_expand,
+            #[cfg(feature = "semantic")]
+            no_window_scoring,
+            #[cfg(feature = "semantic")]
+            no_df_filter,
         } => run_search(
             &query,
             index.as_deref(),
@@ -107,7 +136,14 @@ fn run() -> Result<()> {
             format,
             context,
             debug,
+            explain,
             experimental_rerank,
+            #[cfg(feature = "semantic")]
+            no_expand,
+            #[cfg(feature = "semantic")]
+            no_window_scoring,
+            #[cfg(feature = "semantic")]
+            no_df_filter,
         ),
         Commands::Status { index } => run_status(index.as_deref()),
         #[cfg(feature = "semantic")]
@@ -121,7 +157,10 @@ fn run() -> Result<()> {
     }
 }
 
-fn run_index(path: &Path) -> Result<()> {
+fn run_index(
+    path: &Path,
+    #[cfg(feature = "semantic")] no_embed: bool,
+) -> Result<()> {
     let source_root = path
         .canonicalize()
         .with_context(|| format!("failed to resolve source path {}", path.display()))?;
@@ -186,16 +225,19 @@ fn run_index(path: &Path) -> Result<()> {
     );
     #[cfg(feature = "semantic")]
     {
-        let _embedded = index.embed_pending(32)?;
-        let semantic = index.semantic_status()?;
-        println!(
-            "Embedding: {}/{} chunks done",
-            semantic.vectors, semantic.total_chunks
-        );
+        if !no_embed {
+            let _embedded = index.embed_pending(32)?;
+            let semantic = index.semantic_status()?;
+            println!(
+                "Embedding: {}/{} chunks done",
+                semantic.vectors, semantic.total_chunks
+            );
+        }
     }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_search(
     query: &str,
     index_override: Option<&Path>,
@@ -203,7 +245,11 @@ fn run_search(
     format: OutputFormat,
     context: usize,
     #[cfg_attr(not(feature = "semantic"), allow(unused_variables))] debug: bool,
+    explain: bool,
     #[cfg_attr(not(feature = "semantic"), allow(unused_variables))] experimental_rerank: bool,
+    #[cfg(feature = "semantic")] no_expand: bool,
+    #[cfg(feature = "semantic")] no_window_scoring: bool,
+    #[cfg(feature = "semantic")] no_df_filter: bool,
 ) -> Result<()> {
     let index_root = resolve_index_root(index_override)?;
     if !is_index_root(&index_root) {
@@ -213,15 +259,17 @@ fn run_search(
         .with_context(|| format!("failed to open index at {}", index_root.display()))?;
 
     #[cfg(feature = "semantic")]
+    let search_options = SearchOptions {
+        top_k: top,
+        experimental_rerank,
+        no_expand,
+        no_window_scoring,
+        no_df_filter,
+        ..Default::default()
+    };
+    #[cfg(feature = "semantic")]
     let (results, debug_stats) = if debug {
-        let outcome = index.search_with_outcome(
-            query,
-            SearchOptions {
-                top_k: top,
-                experimental_rerank,
-                ..Default::default()
-            },
-        )?;
+        let outcome = index.search_with_outcome(query, search_options.clone())?;
         let partition = index.snapshot_search_partition()?;
         let timings = outcome
             .debug
@@ -252,21 +300,19 @@ fn run_search(
         ));
         (outcome.results, stats)
     } else {
-        (
-            index.search(
-                query,
-                SearchOptions {
-                    top_k: top,
-                    experimental_rerank,
-                    ..Default::default()
-                },
-            )?,
-            None,
-        )
+        (index.search(query, search_options)?, None)
     };
     #[cfg(not(feature = "semantic"))]
-    let (results, debug_stats): (Vec<SearchResult>, Option<String>) =
-        (index.search(query, SearchOptions { top_k: top, ..Default::default() })?, None);
+    let (results, debug_stats): (Vec<SearchResult>, Option<String>) = (
+        index.search(
+            query,
+            SearchOptions {
+                top_k: top,
+                ..Default::default()
+            },
+        )?,
+        None,
+    );
 
     match format {
         OutputFormat::Text => {
@@ -285,6 +331,16 @@ fn run_search(
                     result.byte_range.1,
                     snippet.replace('\n', "\\n")
                 );
+                if explain {
+                    println!(
+                        "  provenance: layer={} score={:.3} chunk_id={} byte_range={}-{}",
+                        result.source_layer.as_str(),
+                        result.score,
+                        result.chunk_id,
+                        result.byte_range.0,
+                        result.byte_range.1,
+                    );
+                }
             }
         }
         OutputFormat::Json => {

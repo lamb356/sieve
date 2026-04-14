@@ -5,4 +5,5 @@ pub mod report;
 pub mod ripgrep_runner;
 pub mod runner;
 pub mod sieve_runner;
+pub mod splade_runner;
 pub mod types;
