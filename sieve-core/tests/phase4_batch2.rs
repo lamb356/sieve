@@ -6,7 +6,9 @@ use sieve_core::model::ModelManager;
 use sieve_core::semantic_query::{
     PhrasePattern, SemanticGroup, SemanticQuery, SemanticTerm, TermSource,
 };
-use sieve_core::semantic_scan::{compile_scan_query, semantic_scan, MatchEvent, WindowAccumulator};
+use sieve_core::semantic_scan::{
+    compile_scan_query, filter_high_df_patterns, semantic_scan, MatchEvent, WindowAccumulator,
+};
 use sieve_core::surface::{
     realize_surfaces, BoundaryMode, RealizedPattern, SurfaceVariant, VariantKind,
 };
@@ -160,6 +162,36 @@ fn test_aho_corasick_compilation() {
     }];
     let compiled = compile_scan_query(&patterns).unwrap();
     assert_eq!(compiled.patterns.len(), 1);
+}
+
+#[test]
+fn test_filter_high_df_patterns_drops_non_anchor_keeps_anchor() {
+    let mut patterns = vec![
+        RealizedPattern {
+            pattern_id: 0,
+            term_id: Some(0),
+            phrase_id: None,
+            primary_group_id: 0,
+            bytes: b"handling".to_vec(),
+            weight: 1.0,
+            is_anchor: true,
+            boundary: BoundaryMode::Identifier,
+        },
+        RealizedPattern {
+            pattern_id: 1,
+            term_id: Some(1),
+            phrase_id: None,
+            primary_group_id: 1,
+            bytes: b"keys".to_vec(),
+            weight: 0.4,
+            is_anchor: false,
+            boundary: BoundaryMode::Identifier,
+        },
+    ];
+    filter_high_df_patterns(&mut patterns);
+    let bytes: Vec<Vec<u8>> = patterns.into_iter().map(|pattern| pattern.bytes).collect();
+    assert!(bytes.contains(&b"handling".to_vec()));
+    assert!(!bytes.contains(&b"keys".to_vec()));
 }
 
 #[test]

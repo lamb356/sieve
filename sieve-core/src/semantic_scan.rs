@@ -3,8 +3,10 @@ use std::collections::{BinaryHeap, HashMap, VecDeque};
 
 use crate::df_prior::static_df_frac;
 use crate::semantic_query::{GroupId, PhraseId, TermId};
-use crate::surface::BoundaryMode;
+use crate::surface::{BoundaryMode, RealizedPattern};
 use crate::window_score::{compute_idf, score_window};
+
+pub const MAX_PATTERN_DF: f32 = 0.08;
 
 pub struct CompiledScanQuery {
     pub ac: aho_corasick::AhoCorasick,
@@ -20,10 +22,10 @@ pub struct PatternMeta {
     pub boundary: BoundaryMode,
 }
 
-pub fn compile_scan_query(
-    patterns: &[crate::surface::RealizedPattern],
-) -> crate::Result<CompiledScanQuery> {
-    if patterns.is_empty() {
+pub fn compile_scan_query(patterns: &[RealizedPattern]) -> crate::Result<CompiledScanQuery> {
+    let mut filtered_patterns = patterns.to_vec();
+    filter_high_df_patterns(&mut filtered_patterns);
+    if filtered_patterns.is_empty() {
         return Err(crate::SieveError::Message(
             "semantic scan requires at least one pattern".to_string(),
         ));
@@ -31,11 +33,15 @@ pub fn compile_scan_query(
     let ac = aho_corasick::AhoCorasickBuilder::new()
         .match_kind(aho_corasick::MatchKind::Standard)
         .ascii_case_insensitive(false)
-        .build(patterns.iter().map(|pattern| pattern.bytes.as_slice()))
+        .build(
+            filtered_patterns
+                .iter()
+                .map(|pattern| pattern.bytes.as_slice()),
+        )
         .map_err(|err| crate::SieveError::Message(err.to_string()))?;
     Ok(CompiledScanQuery {
         ac,
-        patterns: patterns
+        patterns: filtered_patterns
             .iter()
             .map(|pattern| PatternMeta {
                 term_id: pattern.term_id,
@@ -47,6 +53,17 @@ pub fn compile_scan_query(
             })
             .collect(),
     })
+}
+
+pub fn filter_high_df_patterns(patterns: &mut Vec<RealizedPattern>) {
+    let total = patterns.len();
+    patterns.retain(|pattern| {
+        let text = String::from_utf8_lossy(&pattern.bytes);
+        let df = static_df_frac(&text);
+        pattern.is_anchor || df <= MAX_PATTERN_DF
+    });
+    let dropped = total.saturating_sub(patterns.len());
+    tracing::debug!("DF filter: dropped {} of {} patterns", dropped, total);
 }
 
 #[derive(Debug, Clone, PartialEq)]
