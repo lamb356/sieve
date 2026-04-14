@@ -113,10 +113,6 @@ where
     }
 
     let full_weights = encode(&normalized_query)?;
-    let per_seed_weights: Vec<Vec<(u32, f32)>> = seed_texts
-        .iter()
-        .map(|seed| encode(seed))
-        .collect::<crate::Result<_>>()?;
     let full_max_weight = full_weights
         .iter()
         .map(|(_, weight)| *weight)
@@ -153,15 +149,7 @@ where
 
     for (seed_index, seed) in seed_texts.iter().enumerate() {
         let seed_group_id = seed_index as GroupId;
-        let seed_best = per_seed_weights
-            .get(seed_index)
-            .and_then(|weights| best_matching_seed_piece(weights, seed, vocab_piece))
-            .or_else(|| {
-                per_seed_weights
-                    .get(seed_index)
-                    .and_then(|weights| weights.first().cloned())
-                    .and_then(|(id, weight)| vocab_piece(id).map(|piece| (id, weight, piece)))
-            });
+        let seed_best = best_matching_seed_piece(&full_weights, seed, vocab_piece);
         if let Some((vocab_id, raw_weight, piece)) = seed_best {
             let norm_weight = if full_max_weight > 0.0 {
                 (raw_weight / full_max_weight).clamp(0.0, 1.0)
@@ -224,15 +212,7 @@ where
             continue;
         }
         let norm_weight = (raw_weight / full_max_weight).clamp(0.0, 1.0);
-        let maybe_claim = claim_group_for_term(
-            vocab_id,
-            &canonical,
-            norm_weight,
-            &seed_texts,
-            &per_seed_weights,
-            vocab_piece,
-            aliases,
-        );
+        let maybe_claim = claim_group_for_term(&canonical, &seed_texts, aliases);
         let Some((group_id, source)) = maybe_claim.or_else(|| {
             if norm_weight >= MIN_AUX_GROUP_RATIO {
                 let group_id = *aux_group_map.entry(canonical.clone()).or_insert_with(|| {
@@ -417,54 +397,19 @@ where
     })
 }
 
-fn claim_group_for_term<V>(
-    vocab_id: u32,
+fn claim_group_for_term(
     canonical: &str,
-    norm_weight: f32,
     seed_texts: &[String],
-    per_seed_weights: &[Vec<(u32, f32)>],
-    vocab_piece: &V,
     aliases: &crate::aliases::AliasLexicon,
-) -> Option<(GroupId, TermSource)>
-where
-    V: Fn(u32) -> Option<String>,
-{
+) -> Option<(GroupId, TermSource)> {
     if let Some(index) = seed_texts.iter().position(|seed| seed == canonical) {
         return Some((index as GroupId, TermSource::OriginalToken));
-    }
-    let mut best_claim = None;
-    let mut best_weight = 0.0f32;
-    for (seed_index, weights) in per_seed_weights.iter().enumerate() {
-        let seed_max = weights
-            .iter()
-            .map(|(_, weight)| *weight)
-            .fold(0.0, f32::max);
-        if seed_max <= 0.0 {
-            continue;
-        }
-        let Some(seed_weight) = weights
-            .iter()
-            .find(|(candidate_id, _)| *candidate_id == vocab_id)
-            .map(|(_, weight)| *weight)
-        else {
-            continue;
-        };
-        if seed_weight >= SEED_CLAIM_RATIO * seed_max && seed_weight > best_weight {
-            best_weight = seed_weight;
-            best_claim = Some((seed_index as GroupId, TermSource::SparseExpansion));
-        }
-    }
-    if best_claim.is_some() {
-        return best_claim;
     }
     for (seed_index, seed) in seed_texts.iter().enumerate() {
         if aliases.same_alias_family(seed, canonical) || aliases.same_alias_family(canonical, seed)
         {
             return Some((seed_index as GroupId, TermSource::AliasExpansion));
         }
-    }
-    if norm_weight >= MIN_AUX_GROUP_RATIO {
-        let _ = vocab_piece(vocab_id)?;
     }
     None
 }
@@ -569,7 +514,54 @@ fn maybe_push_token(tokens: &mut Vec<String>, current: &mut String) {
 }
 
 fn normalize_query(query: &str) -> String {
-    query.trim().to_lowercase()
+    let mut collected = Vec::new();
+    let mut saw_content = false;
+    for raw_line in query.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            if saw_content {
+                break;
+            }
+            continue;
+        }
+        let lower = line.to_ascii_lowercase();
+        if is_doc_section_header(&lower) {
+            break;
+        }
+        saw_content = true;
+        collected.push(line.to_string());
+        if line.ends_with('.') || line.ends_with('?') || line.ends_with('!') {
+            break;
+        }
+    }
+
+    let base = if collected.is_empty() {
+        query.trim().to_string()
+    } else {
+        collected.join(" ")
+    };
+    base.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+fn is_doc_section_header(line: &str) -> bool {
+    matches!(
+        line.trim_end_matches(':'),
+        "args"
+            | "arguments"
+            | "params"
+            | "parameters"
+            | "returns"
+            | "return"
+            | "raises"
+            | "raise"
+            | "examples"
+            | "example"
+            | "notes"
+            | "note"
+    )
 }
 
 fn normalize_piece(piece: &str) -> String {
@@ -612,7 +604,9 @@ fn is_stopword(token: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_semantic_query_with, TermSource};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::{compile_semantic_query_with, normalize_query, TermSource};
 
     fn mock_vocab(id: u32) -> Option<String> {
         Some(
@@ -646,7 +640,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(query.seeds.len(), 2);
-        assert_eq!(query.groups.len(), 2);
+        assert!(query.groups.len() >= 2);
         assert!(query
             .terms
             .iter()
@@ -688,5 +682,37 @@ mod tests {
             .iter()
             .any(|term| term.canonical == "module" && term.group_id == 1));
         assert!(query.groups.iter().all(|group| group.importance > 0.0));
+    }
+
+    #[test]
+    fn test_normalize_query_strips_doc_sections() {
+        let normalized = normalize_query(
+            "Calculate the batched KL divergence KL(a || b) with a and b Gumbel.\n\nArgs:\n  a: instance\nReturns:\n  Batchwise KL(a || b)",
+        );
+        assert_eq!(
+            normalized,
+            "calculate the batched kl divergence kl(a || b) with a and b gumbel."
+        );
+    }
+
+    #[test]
+    fn test_semantic_query_uses_single_encode_call() {
+        let aliases = crate::aliases::AliasLexicon::built_in();
+        let calls = AtomicUsize::new(0);
+        let query = compile_semantic_query_with(
+            "failure handling retry",
+            &|text| {
+                calls.fetch_add(1, Ordering::SeqCst);
+                match text {
+                    "failure handling retry" => Ok(vec![(1, 2.0), (2, 1.7), (3, 1.1), (4, 0.8)]),
+                    _ => Ok(Vec::new()),
+                }
+            },
+            &mock_vocab,
+            &aliases,
+        )
+        .unwrap();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(!query.terms.is_empty());
     }
 }

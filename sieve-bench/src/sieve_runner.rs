@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use ignore::WalkBuilder;
 use sieve_core::lexical::build_pending_shards;
 use sieve_core::{Index, SearchOptions, SearchResult};
+use tracing::debug;
 
 use crate::runner::Runner;
 use crate::types::{Episode, Hit};
@@ -30,6 +31,7 @@ impl Runner for SieveRunner {
         index_directory(&index, &ep.stable_root, &ep.corpus_root)?;
         build_pending_shards(&index)?;
         let _ = index.embed_pending(32)?;
+        index.warm_search_models(false)?;
         self.index = Some(index);
         Ok(())
     }
@@ -56,8 +58,30 @@ impl Runner for SieveRunner {
     ) -> Result<Vec<Hit>> {
         let index = self.index.as_ref().context("sieve runner index missing")?;
         let started = Instant::now();
-        let results = index.search(&ep.query, SearchOptions { top_k: Some(k * 8) })?;
-        let hits = collapse_results(&results, k, started.elapsed());
+        let outcome = index.search_with_outcome(
+            &ep.query,
+            SearchOptions {
+                top_k: Some(k * 8),
+                fresh_only: true,
+                ..Default::default()
+            },
+        )?;
+        if let Some(debug_info) = &outcome.debug {
+            debug!(
+                "sieve benchmark query timing: episode={} query={:?} mode={} splade_expand_ms={} aho_compile_ms={} semantic_scan_ms={} raw_scan_ms={} tantivy_query_ms={} dense_knn_ms={} rrf_fusion_ms={}",
+                ep.id,
+                ep.query,
+                debug_info.plan_mode,
+                debug_info.timings.splade_expand.as_millis(),
+                debug_info.timings.aho_compile.as_millis(),
+                debug_info.timings.semantic_scan.as_millis(),
+                debug_info.timings.raw_scan.as_millis(),
+                debug_info.timings.tantivy_query.as_millis(),
+                debug_info.timings.dense_knn.as_millis(),
+                debug_info.timings.rrf_fusion.as_millis(),
+            );
+        }
+        let hits = collapse_results(&outcome.results, k, started.elapsed());
         Ok(hits)
     }
 

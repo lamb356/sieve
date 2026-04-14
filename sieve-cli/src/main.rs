@@ -16,8 +16,6 @@ use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_N
 #[cfg(feature = "semantic")]
 use sieve_core::training_export::export_training_data;
 use sieve_core::{blake3_hex, Index, SearchOptions, SearchResult};
-#[cfg(feature = "semantic")]
-use sieve_core::{plan_query, QueryPlan};
 
 #[derive(Debug, Parser)]
 #[command(name = "sieve-cli")]
@@ -44,6 +42,8 @@ enum Commands {
         context: usize,
         #[arg(long)]
         debug: bool,
+        #[arg(long)]
+        experimental_rerank: bool,
     },
     Status {
         #[arg(long)]
@@ -99,7 +99,16 @@ fn run() -> Result<()> {
             format,
             context,
             debug,
-        } => run_search(&query, index.as_deref(), top, format, context, debug),
+            experimental_rerank,
+        } => run_search(
+            &query,
+            index.as_deref(),
+            top,
+            format,
+            context,
+            debug,
+            experimental_rerank,
+        ),
         Commands::Status { index } => run_status(index.as_deref()),
         #[cfg(feature = "semantic")]
         Commands::ExportTraining {
@@ -194,6 +203,7 @@ fn run_search(
     format: OutputFormat,
     context: usize,
     #[cfg_attr(not(feature = "semantic"), allow(unused_variables))] debug: bool,
+    #[cfg_attr(not(feature = "semantic"), allow(unused_variables))] experimental_rerank: bool,
 ) -> Result<()> {
     let index_root = resolve_index_root(index_override)?;
     if !is_index_root(&index_root) {
@@ -204,43 +214,59 @@ fn run_search(
 
     #[cfg(feature = "semantic")]
     let (results, debug_stats) = if debug {
-        let outcome = index.search_with_outcome(query, SearchOptions { top_k: top })?;
-        let manager = ModelManager::new(&default_sieve_data_dir());
-        let sparse = if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
-            manager.ensure_sparse_model().ok().and_then(|handle| {
-                sieve_core::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path)
-                    .ok()
-            })
-        } else {
-            None
-        };
-        let aliases = sieve_core::aliases::AliasLexicon::built_in();
-        let plan = plan_query(query, sparse.as_ref(), &aliases);
+        let outcome = index.search_with_outcome(
+            query,
+            SearchOptions {
+                top_k: top,
+                experimental_rerank,
+                ..Default::default()
+            },
+        )?;
         let partition = index.snapshot_search_partition()?;
-        let stats = match &plan {
-            QueryPlan::Semantic(semantic) => Some(format!(
-                "semantic planner: mode=semantic groups={} terms={} anchors={} phrases={} coverage={}/{} delta={} indexed={} fresh={}",
-                semantic.groups.len(),
-                semantic.terms.len(),
-                semantic.terms.iter().filter(|term| term.is_anchor).count(),
-                semantic.phrases.len(),
-                outcome.coverage.embedded_chunks,
-                outcome.coverage.total_chunks,
-                outcome.coverage.delta_chunks,
-                partition.indexed_ids.len(),
-                partition.fresh_ids.len(),
-            )),
-            QueryPlan::Regex(_) => Some("semantic planner: mode=regex".to_string()),
-            QueryPlan::Exact(_) => Some("semantic planner: mode=exact".to_string()),
-            QueryPlan::Lexical(_) => Some("semantic planner: mode=lexical".to_string()),
-        };
+        let timings = outcome
+            .debug
+            .as_ref()
+            .map(|debug| &debug.timings)
+            .cloned()
+            .unwrap_or_default();
+        let plan_mode = outcome
+            .debug
+            .as_ref()
+            .map(|debug| debug.plan_mode.as_str())
+            .unwrap_or("unknown");
+        let stats = Some(format!(
+            "semantic planner: mode={} coverage={}/{} delta={} indexed={} fresh={}\ntiming ms: splade_expand={} aho_compile={} semantic_scan={} raw_scan={} tantivy_query={} dense_knn={} rrf_fusion={}",
+            plan_mode,
+            outcome.coverage.embedded_chunks,
+            outcome.coverage.total_chunks,
+            outcome.coverage.delta_chunks,
+            partition.indexed_ids.len(),
+            partition.fresh_ids.len(),
+            timings.splade_expand.as_millis(),
+            timings.aho_compile.as_millis(),
+            timings.semantic_scan.as_millis(),
+            timings.raw_scan.as_millis(),
+            timings.tantivy_query.as_millis(),
+            timings.dense_knn.as_millis(),
+            timings.rrf_fusion.as_millis(),
+        ));
         (outcome.results, stats)
     } else {
-        (index.search(query, SearchOptions { top_k: top })?, None)
+        (
+            index.search(
+                query,
+                SearchOptions {
+                    top_k: top,
+                    experimental_rerank,
+                    ..Default::default()
+                },
+            )?,
+            None,
+        )
     };
     #[cfg(not(feature = "semantic"))]
     let (results, debug_stats): (Vec<SearchResult>, Option<String>) =
-        (index.search(query, SearchOptions { top_k: top })?, None);
+        (index.search(query, SearchOptions { top_k: top, ..Default::default() })?, None);
 
     match format {
         OutputFormat::Text => {

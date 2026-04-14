@@ -221,7 +221,7 @@ fn test_disjoint_partition() {
 #[test]
 fn test_dual_backend_both_contribute() {
     let dir = tempdir().unwrap();
-    let _guard = home_lock().lock().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
     set_home(dir.path());
     let index = Index::open_or_create(dir.path()).unwrap();
     index
@@ -238,12 +238,139 @@ fn test_dual_backend_both_contribute() {
         )
         .unwrap();
 
-    let results = index
-        .search_semantic_query(&mock_semantic_query(), SearchOptions { top_k: Some(10) })
+    let outcome = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                ..Default::default()
+            },
+        )
         .unwrap();
-    let layers: HashSet<_> = results.iter().map(|result| result.source_layer).collect();
+    let layers: HashSet<_> = outcome.source_sets.iter().map(|set| set.source).collect();
     assert!(layers.contains(&ResultSource::SemanticScan));
     assert!(layers.contains(&ResultSource::SpladeBm25));
+}
+
+#[test]
+fn test_fresh_only_semantic_query_skips_stable_layers() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text(
+            "stable.rs",
+            "error handling with retry and exception routing\n",
+        )
+        .unwrap();
+    sieve_core::lexical::build_pending_shards(&index).unwrap();
+    index
+        .add_text(
+            "fresh.rs",
+            "error handling stays fresh via graceful_degradation fallback\n",
+        )
+        .unwrap();
+
+    let outcome = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                fresh_only: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert!(outcome
+        .debug
+        .as_ref()
+        .is_some_and(|debug| debug.plan_mode == "semantic:fresh-only"));
+    assert!(outcome
+        .source_sets
+        .iter()
+        .all(|set| matches!(set.source, ResultSource::SemanticScan)));
+    assert!(!outcome.results.is_empty());
+    assert!(outcome
+        .results
+        .iter()
+        .all(|result| result.source_path == "fresh.rs"));
+    assert!(outcome.results.iter().all(|result| {
+        matches!(
+            result.source_layer,
+            ResultSource::RawScan | ResultSource::SemanticScan | ResultSource::Fused
+        )
+    }));
+}
+
+#[test]
+fn test_semantic_query_keeps_indexed_and_fresh_sources_separate() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text(
+            "stable.rs",
+            "error handling with retry and exception routing\n",
+        )
+        .unwrap();
+    sieve_core::lexical::build_pending_shards(&index).unwrap();
+    index
+        .add_text(
+            "fresh.rs",
+            "error handling stays fresh via graceful_degradation fallback\n",
+        )
+        .unwrap();
+
+    let outcome = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let sources: HashSet<_> = outcome.source_sets.iter().map(|set| set.source).collect();
+    assert!(sources.contains(&ResultSource::SpladeBm25));
+    assert!(sources.contains(&ResultSource::SemanticScan));
+}
+
+#[test]
+fn test_event_reranker_disabled_without_flag() {
+    let dir = tempdir().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
+    set_home(dir.path());
+    let index = Index::open_or_create(dir.path()).unwrap();
+    index
+        .add_text(
+            "stable.rs",
+            "error handling with retry and exception routing\n",
+        )
+        .unwrap();
+    sieve_core::lexical::build_pending_shards(&index).unwrap();
+    index
+        .add_text(
+            "fresh.rs",
+            "error handling stays fresh via graceful_degradation fallback\n",
+        )
+        .unwrap();
+
+    let outcome = index
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(32),
+                experimental_rerank: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert!(outcome
+        .source_sets
+        .iter()
+        .all(|set| set.source != ResultSource::EventReranked));
 }
 
 #[test]
@@ -372,15 +499,22 @@ fn test_event_reranker_feature_extraction() {
 #[test]
 fn test_event_reranker_graceful_skip() {
     let dir = tempdir().unwrap();
-    let _guard = home_lock().lock().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
     set_home(dir.path());
     let index = Index::open_or_create(dir.path()).unwrap();
     index
         .add_text("fallback.rs", "error handling with retry and exception\n")
         .unwrap();
     let results = index
-        .search_semantic_query(&mock_semantic_query(), SearchOptions { top_k: Some(10) })
-        .unwrap();
+        .search_semantic_query(
+            &mock_semantic_query(),
+            SearchOptions {
+                top_k: Some(10),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .results;
     assert!(!results.is_empty());
     assert!(results
         .iter()
@@ -411,7 +545,7 @@ fn test_event_reranker_criteria() {
 #[test]
 fn test_search_without_any_models_still_works() {
     let dir = tempdir().unwrap();
-    let _guard = home_lock().lock().unwrap();
+    let _guard = home_lock().lock().unwrap_or_else(|e| e.into_inner());
     set_home(dir.path());
     let index = Index::open_or_create(dir.path()).unwrap();
     index
@@ -420,7 +554,7 @@ fn test_search_without_any_models_still_works() {
     sieve_core::lexical::build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("error_handling", SearchOptions { top_k: Some(10) })
+        .search("error_handling", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
     assert!(!results.is_empty());
     assert!(results.iter().all(|result| {

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -15,6 +16,14 @@ pub struct Embedder {
     session: Mutex<Session>,
     tokenizer: Tokenizer,
     dimension: usize,
+}
+
+impl fmt::Debug for Embedder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Embedder")
+            .field("dimension", &self.dimension)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Embedder {

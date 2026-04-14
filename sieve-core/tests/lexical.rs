@@ -58,7 +58,7 @@ fn test_hybrid_search() {
     index.add_text("new.rs", "TODO from wal only\n").unwrap();
 
     let results = index
-        .search("TODO", SearchOptions { top_k: Some(10) })
+        .search("TODO", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
     let paths: Vec<_> = results.iter().map(|r| r.source_path.as_str()).collect();
     assert!(paths.contains(&"old.rs"));
@@ -98,7 +98,7 @@ fn test_regex_search() {
     build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("/TODO|FIXME/", SearchOptions { top_k: Some(10) })
+        .search("/TODO|FIXME/", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].source_path, "a.rs");
@@ -117,7 +117,7 @@ fn test_lexical_only_result_localizes_line_and_snippet() {
     let results = index
         .search(
             "authentication middleware",
-            SearchOptions { top_k: Some(10) },
+            SearchOptions { top_k: Some(10), ..Default::default() },
         )
         .unwrap();
 
@@ -145,7 +145,7 @@ fn test_exact_phrase_query_preserves_matches_under_semantic_build() {
     let results = index
         .search(
             "\"authentication middleware\"",
-            SearchOptions { top_k: Some(10) },
+            SearchOptions { top_k: Some(10), ..Default::default() },
         )
         .unwrap();
 
@@ -168,7 +168,7 @@ fn test_lexical_line_numbers_remain_absolute_after_chunking() {
     build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("target lives", SearchOptions { top_k: Some(10) })
+        .search("target lives", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
 
     assert!(results.iter().any(|result| {
@@ -186,7 +186,7 @@ fn test_symbol_query_uses_tantivy_identifier_fallback() {
     build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("foo::bar", SearchOptions { top_k: Some(10) })
+        .search("foo::bar", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
 
     assert_eq!(results.len(), 1);

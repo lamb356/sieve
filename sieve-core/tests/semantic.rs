@@ -114,7 +114,7 @@ fn test_search_without_model_degrades_gracefully() {
         )
         .unwrap();
     let results = index
-        .search("retry_with_backoff", SearchOptions { top_k: Some(5) })
+        .search("retry_with_backoff", SearchOptions { top_k: Some(5), ..Default::default() })
         .unwrap();
     assert!(!results.is_empty());
     assert!(results[0].source_layer != ResultSource::HotVector);
@@ -363,7 +363,7 @@ fn test_search_end_to_end_with_chunks() {
     sieve_core::lexical::build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("needle phrase", SearchOptions { top_k: Some(10) })
+        .search("needle phrase", SearchOptions { top_k: Some(10), ..Default::default() })
         .unwrap();
 
     assert!(!results.is_empty());

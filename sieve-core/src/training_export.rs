@@ -102,7 +102,7 @@ pub fn export_training_data(
 
     for raw_query in query_list {
         let semantic_query = compile_training_query(index, &raw_query, &aliases)?;
-        let windows =
+        let (windows, _scan_timing) =
             semantic_scan_scored_windows(index.wal_content_path(), &metadata, &semantic_query)?;
         for (window, scored) in windows.into_iter().take(top_k_windows.max(1)) {
             let entry_content = index

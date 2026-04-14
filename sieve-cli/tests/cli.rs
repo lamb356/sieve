@@ -360,3 +360,61 @@ fn test_download_model_sparse_stub() {
     assert!(stdout.contains("SPLADE model:"));
     assert!(stdout.contains(".sieve/models/splade"));
 }
+
+#[cfg(feature = "semantic")]
+#[test]
+fn test_search_debug_prints_timing_breakdown() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("handlers.rs"),
+        "fn authentication_middleware() {}\n",
+    )
+    .unwrap();
+
+    let index_status = Command::new(sieve_bin())
+        .args(["index", dir.path().to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(index_status.success());
+
+    let output = Command::new(sieve_bin())
+        .current_dir(dir.path())
+        .args(["search", "authentication", "--debug"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("semantic planner: mode="));
+    assert!(stderr.contains("timing ms:"));
+    assert!(stderr.contains("splade_expand="));
+    assert!(stderr.contains("aho_compile="));
+    assert!(stderr.contains("semantic_scan="));
+    assert!(stderr.contains("raw_scan="));
+    assert!(stderr.contains("tantivy_query="));
+    assert!(stderr.contains("dense_knn="));
+    assert!(stderr.contains("rrf_fusion="));
+}
+
+#[cfg(feature = "semantic")]
+#[test]
+fn test_search_accepts_experimental_rerank_without_debug() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("handlers.rs"),
+        "fn authentication_middleware() {}\n",
+    )
+    .unwrap();
+
+    let index_status = Command::new(sieve_bin())
+        .args(["index", dir.path().to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(index_status.success());
+
+    let output = Command::new(sieve_bin())
+        .current_dir(dir.path())
+        .args(["search", "authentication", "--experimental-rerank"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+}
