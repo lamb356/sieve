@@ -462,16 +462,6 @@ where
         {
             return Some((seed_index as GroupId, TermSource::AliasExpansion));
         }
-        let seed_stem = stem(seed);
-        let canonical_stem = stem(canonical);
-        if !seed_stem.is_empty()
-            && !canonical_stem.is_empty()
-            && (seed_stem == canonical_stem
-                || canonical_stem.starts_with(&seed_stem)
-                || seed_stem.starts_with(&canonical_stem))
-        {
-            return Some((seed_index as GroupId, TermSource::SparseExpansion));
-        }
     }
     if norm_weight >= MIN_AUX_GROUP_RATIO {
         let _ = vocab_piece(vocab_id)?;
@@ -593,15 +583,6 @@ fn is_special_token(piece: &str) -> bool {
     matches!(piece, "[PAD]" | "[UNK]" | "[CLS]" | "[SEP]" | "[MASK]")
         || (piece.starts_with('[') && piece.ends_with(']'))
         || (piece.starts_with('<') && piece.ends_with('>'))
-}
-
-fn stem(token: &str) -> String {
-    for suffix in ["ing", "ed", "es", "s"] {
-        if token.len() > suffix.len() + 2 && token.ends_with(suffix) {
-            return token[..token.len() - suffix.len()].to_string();
-        }
-    }
-    token.to_string()
 }
 
 fn is_stopword(token: &str) -> bool {

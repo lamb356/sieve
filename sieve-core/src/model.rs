@@ -18,6 +18,9 @@ const TOKENIZER_FILE_NAME: &str = "tokenizer.json";
 const SPARSE_MODEL_FILE_NAME: &str = "splade.onnx";
 const SPARSE_MODEL_DATA_FILE_NAME: &str = "splade.onnx.data";
 const SPARSE_TOKENIZER_RELATIVE_PATH: &str = "splade-tokenizer/tokenizer.json";
+const EVENT_MODEL_DIR_NAME: &str = "event-reranker";
+const EVENT_MODEL_FILE_NAME: &str = "model.onnx";
+const EVENT_MODEL_NAME: &str = "sieve-event-reranker-v1";
 
 #[derive(Debug, Clone)]
 pub struct ModelManager {
@@ -108,10 +111,18 @@ impl ModelManager {
         Ok(handle)
     }
 
-    pub fn ensure_event_model(&self) -> Result<EventModelHandle> {
-        Err(SieveError::Message(
-            "Event reranker model download not yet implemented (Phase 4 Batch 3)".to_string(),
-        ))
+    pub fn ensure_event_model(&self) -> Result<Option<EventModelHandle>> {
+        let model_path = self.event_model_path();
+        if !model_path.is_file() {
+            return Ok(None);
+        }
+        let handle = EventModelHandle {
+            model_path,
+            name: EVENT_MODEL_NAME.to_string(),
+        };
+        let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
+        state.event_reranker = Some(handle.clone());
+        Ok(Some(handle))
     }
 
     pub fn registry(&self) -> Result<ModelRegistry> {
@@ -128,6 +139,12 @@ impl ModelManager {
                 model_path: self.sparse_model_path(),
                 tokenizer_path: self.sparse_tokenizer_path(),
                 name: DEFAULT_SPARSE_MODEL_NAME.to_string(),
+            });
+        }
+        if state.event_reranker.is_none() && self.event_model_path().is_file() {
+            state.event_reranker = Some(EventModelHandle {
+                model_path: self.event_model_path(),
+                name: EVENT_MODEL_NAME.to_string(),
             });
         }
         Ok(ModelRegistry {
@@ -171,6 +188,12 @@ impl ModelManager {
     pub fn sparse_tokenizer_path(&self) -> PathBuf {
         self.model_dir(DEFAULT_SPARSE_MODEL_NAME)
             .join(SPARSE_TOKENIZER_RELATIVE_PATH)
+    }
+
+    pub fn event_model_path(&self) -> PathBuf {
+        self.models_dir
+            .join(EVENT_MODEL_DIR_NAME)
+            .join(EVENT_MODEL_FILE_NAME)
     }
 
     fn ensure_artifact(&self, model_name: &str, file_name: &str, url: &str) -> Result<PathBuf> {

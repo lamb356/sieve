@@ -6,6 +6,8 @@ use memmap2::Mmap;
 use roaring::RoaringTreemap;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
+#[cfg(feature = "semantic")]
+use tantivy::query::{BooleanQuery, BoostQuery, PhraseQuery};
 use tantivy::query::{Query, QueryParser, TermQuery};
 use tantivy::schema::{
     Field, IndexRecordOption, NumericOptions, Schema, SchemaBuilder, TextFieldIndexing,
@@ -17,6 +19,8 @@ use tantivy::{doc, Index as TantivyIndex, TantivyDocument};
 use tracing::debug;
 
 use crate::chunk::SlidingChunker;
+#[cfg(feature = "semantic")]
+use crate::semantic_query::{GroupId, SemanticQuery};
 use crate::{Index, Result, SieveError, WalMetaRecord};
 
 const INDEXED_ENTRIES_FILE: &str = "indexed_entries.bin";
@@ -39,6 +43,24 @@ pub struct LexicalMatch {
 pub(crate) struct LexicalSearchOutcome {
     pub matches: Vec<LexicalMatch>,
     pub skipped_due_to_parse_failure: bool,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TantivyFieldKind {
+    Body,
+    Ident,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SemanticTantivyClause {
+    pub field: TantivyFieldKind,
+    pub text: String,
+    pub boost: f32,
+    pub is_anchor: bool,
+    pub is_phrase: bool,
+    pub group_id: Option<GroupId>,
 }
 
 #[derive(Clone, Copy)]
@@ -134,6 +156,106 @@ pub fn build_pending_shards(index: &Index) -> Result<usize> {
 
 pub fn search_lexical(shards_dir: &Path, query: &str, top_k: usize) -> Result<Vec<LexicalMatch>> {
     Ok(search_lexical_with_fallback(shards_dir, query, top_k)?.matches)
+}
+
+#[cfg(feature = "semantic")]
+pub fn search_semantic_lexical(
+    shards_dir: &Path,
+    query: &SemanticQuery,
+    top_k: usize,
+) -> Result<Vec<LexicalMatch>> {
+    if !shards_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let shard_dirs = shard_directories(shards_dir)?;
+    if shard_dirs.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut results = Vec::new();
+    for shard_dir in shard_dirs {
+        let index = TantivyIndex::open_in_dir(&shard_dir)?;
+        register_tokenizers(&index)?;
+        let schema = index.schema();
+        let query_obj = build_semantic_tantivy_query(query, &schema)?;
+        let fields = schema_fields(&schema).ok_or_else(|| {
+            SieveError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "missing lexical schema fields",
+            ))
+        })?;
+        let reader = index.reader()?;
+        let searcher = reader.searcher();
+        let top_docs = searcher.search(&query_obj, &TopDocs::with_limit(top_k))?;
+
+        for (score, doc_address) in top_docs {
+            let retrieved: TantivyDocument = searcher.doc(doc_address)?;
+            let stored_text = retrieved
+                .get_first(fields.stored_text)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            if !semantic_document_matches(query, &stored_text) {
+                continue;
+            }
+
+            let source_path = retrieved
+                .get_first(fields.source_path)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let wal_entry_id = retrieved
+                .get_first(fields.wal_entry_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default();
+            let chunk_id = retrieved
+                .get_first(fields.chunk_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
+            let byte_start = retrieved
+                .get_first(fields.byte_start)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
+            let byte_end = retrieved
+                .get_first(fields.byte_end)
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u32;
+            let default_line_start = retrieved
+                .get_first(fields.line_range_start)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1) as usize;
+            let default_line_end = retrieved
+                .get_first(fields.line_range_end)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(default_line_start as u64) as usize;
+            let (line_range, snippet) = extract_snippet_and_line_range(
+                &stored_text,
+                &query.normalized_query,
+                (default_line_start, default_line_end),
+            );
+            results.push(LexicalMatch {
+                source_path,
+                chunk_id,
+                byte_range: (byte_start, byte_end),
+                line_range,
+                snippet,
+                bm25_score: score as f64,
+                wal_entry_id,
+            });
+        }
+    }
+
+    results.sort_by(|a, b| {
+        b.bm25_score
+            .partial_cmp(&a.bm25_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.source_path.cmp(&b.source_path))
+    });
+    if results.len() > top_k {
+        results.truncate(top_k);
+    }
+    Ok(results)
 }
 
 pub(crate) fn search_lexical_with_fallback(
@@ -406,7 +528,7 @@ fn persist_indexed_entries(shards_dir: &Path, bitmap: &RoaringTreemap) -> Result
     Ok(())
 }
 
-fn lexical_schema() -> Schema {
+pub fn lexical_schema() -> Schema {
     let mut builder = SchemaBuilder::default();
     builder.add_text_field("source_path", STRING | STORED);
     builder.add_text_field("body_text", TEXT | STORED);
@@ -429,6 +551,163 @@ fn lexical_schema() -> Schema {
     builder.add_u64_field("line_range_end", STORED);
     builder.add_text_field("stored_text", STRING | STORED);
     builder.build()
+}
+
+#[cfg(feature = "semantic")]
+pub fn anchor_boost(norm_weight: f32) -> f32 {
+    1.5 + 3.5 * norm_weight.clamp(0.0, 1.0)
+}
+
+#[cfg(feature = "semantic")]
+pub fn expansion_boost(norm_weight: f32) -> f32 {
+    0.4 + 2.0 * norm_weight.clamp(0.0, 1.0)
+}
+
+#[cfg(feature = "semantic")]
+pub fn phrase_boost(norm_weight: f32) -> f32 {
+    2.0 + 3.0 * norm_weight.clamp(0.0, 1.0)
+}
+
+#[cfg(feature = "semantic")]
+pub fn semantic_tantivy_clauses(query: &SemanticQuery) -> Vec<SemanticTantivyClause> {
+    let mut clauses = Vec::new();
+
+    for term in &query.terms {
+        let boost = if term.is_anchor {
+            anchor_boost(term.norm_weight)
+        } else {
+            expansion_boost(term.norm_weight)
+        };
+        let variants = if term.surface_variants.is_empty() {
+            vec![term.canonical.clone()]
+        } else {
+            term.surface_variants
+                .iter()
+                .map(|variant| variant.text.clone())
+                .collect()
+        };
+        for text in variants {
+            if text.trim().is_empty() {
+                continue;
+            }
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Body,
+                text: text.clone(),
+                boost,
+                is_anchor: term.is_anchor,
+                is_phrase: false,
+                group_id: Some(term.group_id),
+            });
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Ident,
+                text,
+                boost,
+                is_anchor: term.is_anchor,
+                is_phrase: false,
+                group_id: Some(term.group_id),
+            });
+        }
+    }
+
+    for phrase in &query.phrases {
+        let variants = if phrase.surface_variants.is_empty() {
+            vec![phrase.canonical.clone()]
+        } else {
+            phrase
+                .surface_variants
+                .iter()
+                .map(|variant| variant.text.clone())
+                .collect()
+        };
+        for text in variants {
+            if text.trim().is_empty() {
+                continue;
+            }
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Body,
+                text: text.clone(),
+                boost: phrase_boost(phrase.norm_weight),
+                is_anchor: phrase.is_anchor,
+                is_phrase: true,
+                group_id: phrase.component_groups.first().copied(),
+            });
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Ident,
+                text,
+                boost: phrase_boost(phrase.norm_weight),
+                is_anchor: phrase.is_anchor,
+                is_phrase: true,
+                group_id: phrase.component_groups.first().copied(),
+            });
+        }
+    }
+
+    clauses
+}
+
+#[cfg(feature = "semantic")]
+pub fn build_semantic_tantivy_query(
+    query: &SemanticQuery,
+    schema: &Schema,
+) -> Result<Box<dyn Query>> {
+    let fields = schema_fields(schema).ok_or_else(|| {
+        SieveError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "missing lexical schema fields",
+        ))
+    })?;
+    let clauses = semantic_tantivy_clauses(query);
+    if clauses.is_empty() {
+        return Err(SieveError::Message(
+            "semantic tantivy query requires at least one clause".to_string(),
+        ));
+    }
+
+    let mut anchor_should = Vec::new();
+    let mut expansion_should = Vec::new();
+    let mut phrase_should = Vec::new();
+    for clause in clauses {
+        let field = match clause.field {
+            TantivyFieldKind::Body => fields.body_text,
+            TantivyFieldKind::Ident => fields.ident_text,
+        };
+        let boosted: Box<dyn Query> = Box::new(BoostQuery::new(
+            build_clause_query(field, &clause)?,
+            clause.boost,
+        ));
+        if clause.is_phrase {
+            phrase_should.push((tantivy::query::Occur::Should, boosted));
+        } else if clause.is_anchor {
+            anchor_should.push((tantivy::query::Occur::Should, boosted));
+        } else {
+            expansion_should.push((tantivy::query::Occur::Should, boosted));
+        }
+    }
+
+    if anchor_should.is_empty() {
+        return Err(SieveError::Message(
+            "semantic tantivy query requires at least one anchor clause".to_string(),
+        ));
+    }
+
+    let mut final_clauses: Vec<(tantivy::query::Occur, Box<dyn Query>)> = vec![(
+        tantivy::query::Occur::Must,
+        Box::new(BooleanQuery::new(anchor_should)) as Box<dyn Query>,
+    )];
+    if !expansion_should.is_empty() {
+        final_clauses.push((
+            tantivy::query::Occur::Should,
+            Box::new(BooleanQuery::new(expansion_should)) as Box<dyn Query>,
+        ));
+    }
+    if !phrase_should.is_empty() {
+        final_clauses.push((
+            tantivy::query::Occur::Should,
+            Box::new(BooleanQuery::new(phrase_should)) as Box<dyn Query>,
+        ));
+    }
+
+    Ok(Box::new(BooleanQuery::new(final_clauses)))
 }
 
 fn schema_fields(schema: &Schema) -> Option<LexicalFields> {
@@ -519,4 +798,75 @@ fn extract_snippet_and_line_range(
         default_range,
         content.lines().next().unwrap_or_default().to_string(),
     )
+}
+
+#[cfg(feature = "semantic")]
+fn build_clause_query(field: Field, clause: &SemanticTantivyClause) -> Result<Box<dyn Query>> {
+    let normalized = clause.text.trim().to_lowercase();
+    if normalized.is_empty() {
+        return Err(SieveError::Message(
+            "semantic tantivy clause text cannot be empty".to_string(),
+        ));
+    }
+    if clause.is_phrase {
+        let tokens: Vec<String> = normalized
+            .split_whitespace()
+            .filter(|token| !token.is_empty())
+            .map(str::to_string)
+            .collect();
+        if tokens.len() >= 2 {
+            let terms = tokens
+                .iter()
+                .map(|token| Term::from_field_text(field, token))
+                .collect();
+            return Ok(Box::new(PhraseQuery::new(terms)));
+        }
+    }
+    Ok(Box::new(TermQuery::new(
+        Term::from_field_text(field, &normalized),
+        IndexRecordOption::WithFreqsAndPositions,
+    )))
+}
+
+#[cfg(feature = "semantic")]
+fn semantic_document_matches(query: &SemanticQuery, content: &str) -> bool {
+    let hay = content.to_lowercase();
+    let mut matched_anchor = false;
+
+    for phrase in &query.phrases {
+        let variants = if phrase.surface_variants.is_empty() {
+            vec![phrase.canonical.clone()]
+        } else {
+            phrase
+                .surface_variants
+                .iter()
+                .map(|variant| variant.text.clone())
+                .collect()
+        };
+        if variants
+            .iter()
+            .any(|variant| !variant.is_empty() && hay.contains(&variant.to_lowercase()))
+        {
+            continue;
+        }
+    }
+
+    for term in &query.terms {
+        let variants = if term.surface_variants.is_empty() {
+            vec![term.canonical.clone()]
+        } else {
+            term.surface_variants
+                .iter()
+                .map(|variant| variant.text.clone())
+                .collect()
+        };
+        let matched = variants
+            .iter()
+            .any(|variant| !variant.is_empty() && hay.contains(&variant.to_lowercase()));
+        if matched && term.is_anchor {
+            matched_anchor = true;
+        }
+    }
+
+    matched_anchor
 }

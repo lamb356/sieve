@@ -180,6 +180,7 @@ fn test_window_accumulator() {
         &compiled,
         &[(7, b"failure handling in a module".as_slice())],
         &query,
+        64,
     );
     assert!(!windows.is_empty());
     assert_eq!(dfs.len(), query.terms.len());
@@ -349,7 +350,7 @@ fn test_semantic_scan_end_to_end() {
         11,
         b"module failure_handling path\nretryable error path\n".as_slice(),
     )];
-    let (windows, dfs) = semantic_scan(&compiled, &entries, &query);
+    let (windows, dfs) = semantic_scan(&compiled, &entries, &query, 64);
     assert!(!windows.is_empty());
     assert_eq!(dfs.len(), query.terms.len());
     assert!(windows.iter().any(|window| window.has_anchor));
@@ -362,7 +363,7 @@ fn test_semantic_scan_zero_preprocess() {
     let patterns = realize_surfaces(&mut query, &|term| static_df_frac(term));
     let compiled = compile_scan_query(&patterns).unwrap();
     let raw = b"\0failure_handling::module\0retry";
-    let (windows, _) = semantic_scan(&compiled, &[(9, raw.as_slice())], &query);
+    let (windows, _) = semantic_scan(&compiled, &[(9, raw.as_slice())], &query, 64);
     assert!(!windows.is_empty());
     assert!(windows
         .iter()

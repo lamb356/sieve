@@ -322,10 +322,8 @@ fn test_model_registry_stubbed() {
     assert!(registry.sparse.is_none());
     assert!(registry.event_reranker.is_none());
 
-    let event_err = manager.ensure_event_model().unwrap_err();
-    assert!(event_err
-        .to_string()
-        .contains("Event reranker model download not yet implemented"));
+    let event = manager.ensure_event_model().unwrap();
+    assert!(event.is_none());
 }
 
 #[test]

@@ -1,8 +1,12 @@
 pub mod aliases;
 pub mod chunk;
+#[cfg(feature = "semantic")]
+pub mod default_queries;
 pub mod df_prior;
 #[cfg(feature = "semantic")]
 pub mod embed;
+#[cfg(feature = "semantic")]
+pub mod event_rerank;
 pub mod fusion;
 pub mod lexical;
 #[cfg(feature = "semantic")]
@@ -15,6 +19,8 @@ pub mod semantic_scan;
 pub mod sparse;
 #[cfg(feature = "semantic")]
 pub mod surface;
+#[cfg(feature = "semantic")]
+pub mod training_export;
 #[cfg(feature = "semantic")]
 pub mod vectors;
 #[cfg(feature = "semantic")]
@@ -43,7 +49,7 @@ use crate::chunk::{Chunk, SlidingChunker};
 use crate::df_prior::static_df_frac;
 use crate::fusion::{weighted_rrf_fuse, ResultId, ResultSource, ScoredResult};
 #[cfg(feature = "semantic")]
-use crate::lexical::load_indexed_entries;
+use crate::lexical::{load_indexed_entries, search_semantic_lexical};
 use crate::lexical::{search_lexical_with_fallback, LexicalMatch};
 #[cfg(feature = "semantic")]
 use crate::model::DEFAULT_SPARSE_MODEL_NAME;
@@ -57,8 +63,6 @@ use crate::semantic_scan::compile_scan_query;
 use crate::surface::realize_surfaces;
 #[cfg(feature = "semantic")]
 use crate::vectors::{snippet_from_byte_range, HotVectorStore, VectorMatch, VectorMeta};
-#[cfg(feature = "semantic")]
-use crate::window_score::{compute_idf, score_window};
 
 const WAL_META_FILE_NAME: &str = "wal.meta";
 const WAL_CONTENT_FILE_NAME: &str = "wal.content";
@@ -174,6 +178,14 @@ pub struct SearchCoverage {
 pub struct SearchOutcome {
     pub results: Vec<SearchResult>,
     pub coverage: SearchCoverage,
+}
+
+#[cfg(feature = "semantic")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchSnapshot {
+    pub indexed_ids: roaring::RoaringTreemap,
+    pub fresh_ids: roaring::RoaringTreemap,
+    pub active_ids: roaring::RoaringTreemap,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -436,37 +448,23 @@ impl Index {
                 )
             }
             QueryPlan::Semantic(semantic_query) => {
-                let indexed_entries = load_indexed_entries(&shards_dir)?;
-                let fresh_metadata: Vec<WalMetaRecord> = active_metadata
-                    .iter()
-                    .filter(|entry| !indexed_entries.contains(entry.wal_entry_id))
-                    .cloned()
-                    .collect();
                 let scan = scan_query_results(&self.wal_content_path, &active_metadata, query)?;
-                let (semantic, lexical) = join(
-                    || {
-                        semantic_scan_results(
-                            &self.wal_content_path,
-                            &fresh_metadata,
-                            semantic_query.as_ref(),
-                        )
-                    },
-                    || search_lexical_with_fallback(&shards_dir, query, top_k),
-                );
-                let lexical = lexical?;
-                let lexical = filter_lexical_matches(lexical.matches, &active_ids);
-                let mut result_sets = vec![
-                    (ResultSource::RawScan, 0.90, scan),
-                    (ResultSource::LexicalBm25, 1.00, lexical_to_scored(lexical)),
-                ];
-                let semantic_results = semantic?;
+                let semantic_results = self.search_semantic_query(
+                    semantic_query.as_ref(),
+                    SearchOptions { top_k: Some(top_k) },
+                )?;
+                let mut result_sets = vec![(ResultSource::RawScan, 0.90, scan)];
                 if !semantic_results.is_empty() {
+                    let semantic_scored: Vec<ScoredResult> = semantic_results
+                        .into_iter()
+                        .map(search_result_to_scored)
+                        .collect();
                     result_sets.insert(
                         0,
                         (
                             ResultSource::SemanticScan,
                             SEMANTIC_SCAN_ALPHA,
-                            semantic_results,
+                            semantic_scored,
                         ),
                     );
                 }
@@ -734,6 +732,23 @@ impl Index {
     }
 
     #[cfg(feature = "semantic")]
+    pub fn snapshot_search_partition(&self) -> Result<SearchSnapshot> {
+        let active_hash = self.active_wal_entry_ids()?;
+        let mut active_ids = roaring::RoaringTreemap::new();
+        for wal_entry_id in active_hash {
+            active_ids.insert(wal_entry_id);
+        }
+        let indexed_all = load_indexed_entries(&self.root.join("segments"))?;
+        let indexed_ids = &indexed_all & &active_ids;
+        let fresh_ids = &active_ids - &indexed_ids;
+        Ok(SearchSnapshot {
+            indexed_ids,
+            fresh_ids,
+            active_ids,
+        })
+    }
+
+    #[cfg(feature = "semantic")]
     pub fn semantic_status(&self) -> Result<SemanticStatus> {
         let total_chunks = self.total_chunk_count()?;
         let model_manager = self.model_manager();
@@ -835,6 +850,65 @@ impl Index {
         self.chunk_count()
     }
 
+    #[cfg(feature = "semantic")]
+    pub fn search_semantic_query(
+        &self,
+        query: &SemanticQuery,
+        options: SearchOptions,
+    ) -> Result<Vec<SearchResult>> {
+        let top_k = options.top_k.unwrap_or(10);
+        let snapshot = self.snapshot_search_partition()?;
+        let metadata = self.metadata_snapshot()?;
+        if metadata.is_empty() || snapshot.active_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let active_metadata: Vec<WalMetaRecord> = metadata
+            .into_iter()
+            .filter(|entry| snapshot.active_ids.contains(entry.wal_entry_id))
+            .collect();
+        let fresh_metadata: Vec<WalMetaRecord> = active_metadata
+            .iter()
+            .filter(|entry| snapshot.fresh_ids.contains(entry.wal_entry_id))
+            .cloned()
+            .collect();
+
+        let mut scored = Vec::new();
+        if !snapshot.indexed_ids.is_empty() {
+            let lexical = search_semantic_lexical(&self.root.join("segments"), query, top_k)?;
+            let lexical = filter_lexical_matches_bitmap(lexical, &snapshot.indexed_ids);
+            scored.extend(lexical_to_scored_with_source(
+                lexical,
+                ResultSource::SpladeBm25,
+            ));
+        }
+        if !fresh_metadata.is_empty() {
+            scored.extend(semantic_scan_results(
+                &self.wal_content_path,
+                &fresh_metadata,
+                query,
+            )?);
+        }
+
+        if self.should_event_rerank(query, scored.len())? {
+            if let Ok(reranked) = self.try_event_rerank_results(query, &fresh_metadata, &scored) {
+                if !reranked.is_empty() {
+                    scored.extend(reranked);
+                }
+            }
+        }
+
+        scored.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| left.source_path.cmp(&right.source_path))
+                .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+        });
+        Ok(self.finalize_search_results(&query.normalized_query, scored, top_k))
+    }
+
     fn finalize_search_results(
         &self,
         query: &str,
@@ -904,6 +978,83 @@ impl Index {
                 }
             })
             .collect()
+    }
+
+    #[cfg(feature = "semantic")]
+    fn should_event_rerank(&self, query: &SemanticQuery, candidate_count: usize) -> Result<bool> {
+        if !crate::event_rerank::should_rerank_event_windows(query, candidate_count, true) {
+            return Ok(false);
+        }
+        Ok(self.model_manager().registry()?.event_reranker.is_some())
+    }
+
+    #[cfg(feature = "semantic")]
+    fn try_event_rerank_results(
+        &self,
+        query: &SemanticQuery,
+        fresh_metadata: &[WalMetaRecord],
+        existing: &[ScoredResult],
+    ) -> Result<Vec<ScoredResult>> {
+        if fresh_metadata.is_empty() {
+            return Ok(Vec::new());
+        }
+        let Some(handle) = self.model_manager().registry()?.event_reranker else {
+            return Ok(Vec::new());
+        };
+        let reranker = match crate::event_rerank::EventReranker::load(&handle.model_path) {
+            Ok(reranker) => reranker,
+            Err(_) => return Ok(Vec::new()),
+        };
+
+        let windows = semantic_scan_scored_windows(&self.wal_content_path, fresh_metadata, query)?;
+        if windows.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut accumulators: Vec<crate::semantic_scan::WindowAccumulator> = windows
+            .iter()
+            .take(crate::event_rerank::MAX_RERANK_WINDOWS)
+            .map(|(window, _)| crate::semantic_scan::WindowAccumulator {
+                wal_entry_id: window.wal_entry_id,
+                window_start: window.window_start,
+                window_end: window.window_end,
+                events: window.events.clone(),
+                has_anchor: window.has_anchor,
+            })
+            .collect();
+        let mut reranked: Vec<ScoredResult> = windows
+            .into_iter()
+            .take(crate::event_rerank::MAX_RERANK_WINDOWS)
+            .map(|(_, scored)| scored)
+            .collect();
+        let formula_scores: Vec<f32> = reranked.iter().map(|scored| scored.score as f32).collect();
+        let idf = vec![1.0; query.terms.len().max(1)];
+        let updated_scores = match reranker.rerank(&mut accumulators, query, &idf, &formula_scores)
+        {
+            Ok(scores) => scores,
+            Err(_) => return Ok(Vec::new()),
+        };
+
+        let existing_by_id: HashMap<ResultId, &ScoredResult> = existing
+            .iter()
+            .map(|result| (result.result_id, result))
+            .collect();
+        for (idx, candidate) in reranked.iter_mut().enumerate() {
+            if let Some(score) = updated_scores.get(idx) {
+                candidate.score = *score as f64;
+            }
+            if let Some(existing) = existing_by_id.get(&candidate.result_id) {
+                candidate.score = candidate.score.max(existing.score);
+            }
+            candidate.source_layer = ResultSource::EventReranked;
+        }
+        reranked.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        Ok(reranked)
     }
 
     #[cfg(feature = "semantic")]
@@ -1382,6 +1533,20 @@ fn semantic_scan_results(
     metadata: &[WalMetaRecord],
     semantic_query: &SemanticQuery,
 ) -> Result<Vec<ScoredResult>> {
+    Ok(
+        semantic_scan_scored_windows(wal_content_path, metadata, semantic_query)?
+            .into_iter()
+            .map(|(_, scored)| scored)
+            .collect(),
+    )
+}
+
+#[cfg(feature = "semantic")]
+pub(crate) fn semantic_scan_scored_windows(
+    wal_content_path: &Path,
+    metadata: &[WalMetaRecord],
+    semantic_query: &SemanticQuery,
+) -> Result<Vec<(crate::semantic_scan::ScoredWindow, ScoredResult)>> {
     if metadata.is_empty() {
         return Ok(Vec::new());
     }
@@ -1407,21 +1572,8 @@ fn semantic_scan_results(
         entry_bytes.push((entry.wal_entry_id, &mmap[start..end]));
     }
 
-    let (windows, df_counts) =
-        crate::semantic_scan::semantic_scan(&compiled, &entry_bytes, &realized_query);
-    let idf: Vec<f32> = realized_query
-        .terms
-        .iter()
-        .enumerate()
-        .map(|(idx, term)| {
-            compute_idf(
-                idx as crate::semantic_query::TermId,
-                df_counts.get(idx).copied().unwrap_or_default(),
-                metadata.len() as u32,
-                static_df_frac(&term.canonical),
-            )
-        })
-        .collect();
+    let (windows, _df_counts) =
+        crate::semantic_scan::semantic_scan(&compiled, &entry_bytes, &realized_query, 64);
 
     let entry_map: HashMap<u64, &WalMetaRecord> = metadata
         .iter()
@@ -1429,10 +1581,6 @@ fn semantic_scan_results(
         .collect();
     let mut scored = Vec::new();
     for window in windows {
-        let score = score_window(&window, &realized_query, &idf) as f64;
-        if score <= 0.0 {
-            continue;
-        }
         let Some(entry) = entry_map.get(&window.wal_entry_id).copied() else {
             continue;
         };
@@ -1442,18 +1590,22 @@ fn semantic_scan_results(
             continue;
         }
         let slice = &mmap[start..end];
-        scored.push(semantic_window_to_scored(slice, entry, &window, score));
+        scored.push((
+            window.clone(),
+            semantic_window_to_scored(slice, entry, &window, window.score as f64),
+        ));
     }
 
     content_file.unlock()?;
 
     scored.sort_by(|left, right| {
         right
+            .1
             .score
-            .partial_cmp(&left.score)
+            .partial_cmp(&left.1.score)
             .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| left.source_path.cmp(&right.source_path))
-            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+            .then_with(|| left.1.source_path.cmp(&right.1.source_path))
+            .then_with(|| left.1.line_range.0.cmp(&right.1.line_range.0))
     });
     Ok(scored)
 }
@@ -1462,7 +1614,7 @@ fn semantic_scan_results(
 fn semantic_window_to_scored(
     slice: &[u8],
     entry: &WalMetaRecord,
-    window: &crate::semantic_scan::WindowAccumulator,
+    window: &crate::semantic_scan::ScoredWindow,
     score: f64,
 ) -> ScoredResult {
     let window_start = (window.window_start as usize).min(slice.len());
@@ -1718,7 +1870,25 @@ fn filter_lexical_matches(
         .collect()
 }
 
+#[cfg(feature = "semantic")]
+fn filter_lexical_matches_bitmap(
+    matches: Vec<LexicalMatch>,
+    active_ids: &roaring::RoaringTreemap,
+) -> Vec<LexicalMatch> {
+    matches
+        .into_iter()
+        .filter(|entry| active_ids.contains(entry.wal_entry_id))
+        .collect()
+}
+
 fn lexical_to_scored(matches: Vec<LexicalMatch>) -> Vec<ScoredResult> {
+    lexical_to_scored_with_source(matches, ResultSource::LexicalBm25)
+}
+
+fn lexical_to_scored_with_source(
+    matches: Vec<LexicalMatch>,
+    source_layer: ResultSource,
+) -> Vec<ScoredResult> {
     matches
         .into_iter()
         .map(|entry| ScoredResult {
@@ -1732,10 +1902,28 @@ fn lexical_to_scored(matches: Vec<LexicalMatch>) -> Vec<ScoredResult> {
             chunk_id: entry.chunk_id,
             snippet: entry.snippet,
             score: entry.bm25_score,
-            source_layer: ResultSource::LexicalBm25,
+            source_layer,
             wal_entry_id: entry.wal_entry_id,
         })
         .collect()
+}
+
+#[cfg(feature = "semantic")]
+fn search_result_to_scored(result: SearchResult) -> ScoredResult {
+    ScoredResult {
+        result_id: ResultId {
+            wal_entry_id: result.wal_entry_id,
+            byte_start: result.byte_range.0,
+            byte_end: result.byte_range.1,
+        },
+        source_path: result.source_path,
+        line_range: result.line_range,
+        chunk_id: result.chunk_id,
+        snippet: result.snippet,
+        score: result.score,
+        source_layer: result.source_layer,
+        wal_entry_id: result.wal_entry_id,
+    }
 }
 
 #[cfg(feature = "semantic")]

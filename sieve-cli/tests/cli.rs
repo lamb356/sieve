@@ -69,6 +69,40 @@ fn search_without_existing_index_fails_and_does_not_create_dot_sieve() {
     assert!(!dir.path().join(".sieve").exists());
 }
 
+#[cfg(feature = "semantic")]
+#[test]
+#[ignore]
+fn test_cli_export_training() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("handlers.rs"),
+        "fn authentication_middleware() {}\nfn retry_with_backoff() {}\n",
+    )
+    .unwrap();
+
+    let index_status = Command::new(sieve_bin())
+        .args(["index", dir.path().to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(index_status.success());
+
+    let output_path = dir.path().join("training.jsonl");
+    let export = Command::new(sieve_bin())
+        .current_dir(dir.path())
+        .args([
+            "export-training",
+            "--output",
+            output_path.to_str().unwrap(),
+            "--top-k",
+            "8",
+        ])
+        .status()
+        .unwrap();
+
+    assert!(export.success());
+    assert!(output_path.exists());
+}
+
 #[test]
 fn reindex_rebuilds_index_instead_of_accumulating_stale_results() {
     let dir = tempdir().unwrap();
@@ -219,8 +253,10 @@ fn test_status_command() {
     assert!(stdout.contains("Shards:"));
     #[cfg(feature = "semantic")]
     {
-        assert!(stdout.contains("Dense model:") || stdout.contains("Vectors:"));
-        assert!(stdout.contains("SPLADE model:"));
+        assert!(stdout.contains("Dense vectors:") || stdout.contains("Dense model:"));
+        assert!(stdout.contains("Models:"));
+        assert!(stdout.contains("SPLADE:"));
+        assert!(stdout.contains("Event reranker:"));
         assert!(stdout.contains("Retrieval modes:"));
         assert!(stdout.contains("Semantic coverage:"));
     }

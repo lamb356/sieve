@@ -7,10 +7,14 @@ use clap::{Parser, Subcommand, ValueEnum};
 use ignore::WalkBuilder;
 use serde_json::json;
 #[cfg(feature = "semantic")]
+use sieve_core::default_queries::DEFAULT_TRAINING_QUERIES;
+#[cfg(feature = "semantic")]
 use sieve_core::default_sieve_data_dir;
 use sieve_core::lexical::{build_pending_shards, load_indexed_entries};
 #[cfg(feature = "semantic")]
 use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME};
+#[cfg(feature = "semantic")]
+use sieve_core::training_export::export_training_data;
 use sieve_core::{blake3_hex, Index, SearchOptions, SearchResult};
 #[cfg(feature = "semantic")]
 use sieve_core::{plan_query, QueryPlan};
@@ -44,6 +48,15 @@ enum Commands {
     Status {
         #[arg(long)]
         index: Option<PathBuf>,
+    },
+    #[cfg(feature = "semantic")]
+    ExportTraining {
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long)]
+        top_k: Option<usize>,
+        #[arg(long)]
+        queries: Option<PathBuf>,
     },
     #[cfg(feature = "semantic")]
     DownloadModel {
@@ -88,6 +101,12 @@ fn run() -> Result<()> {
             debug,
         } => run_search(&query, index.as_deref(), top, format, context, debug),
         Commands::Status { index } => run_status(index.as_deref()),
+        #[cfg(feature = "semantic")]
+        Commands::ExportTraining {
+            output,
+            top_k,
+            queries,
+        } => run_export_training(&output, top_k, queries.as_deref()),
         #[cfg(feature = "semantic")]
         Commands::DownloadModel { sparse, all } => run_download_model(sparse, all),
     }
@@ -197,9 +216,10 @@ fn run_search(
         };
         let aliases = sieve_core::aliases::AliasLexicon::built_in();
         let plan = plan_query(query, sparse.as_ref(), &aliases);
+        let partition = index.snapshot_search_partition()?;
         let stats = match &plan {
             QueryPlan::Semantic(semantic) => Some(format!(
-                "semantic planner: mode=semantic groups={} terms={} anchors={} phrases={} coverage={}/{} delta={}",
+                "semantic planner: mode=semantic groups={} terms={} anchors={} phrases={} coverage={}/{} delta={} indexed={} fresh={}",
                 semantic.groups.len(),
                 semantic.terms.len(),
                 semantic.terms.iter().filter(|term| term.is_anchor).count(),
@@ -207,6 +227,8 @@ fn run_search(
                 outcome.coverage.embedded_chunks,
                 outcome.coverage.total_chunks,
                 outcome.coverage.delta_chunks,
+                partition.indexed_ids.len(),
+                partition.fresh_ids.len(),
             )),
             QueryPlan::Regex(_) => Some("semantic planner: mode=regex".to_string()),
             QueryPlan::Exact(_) => Some("semantic planner: mode=exact".to_string()),
@@ -299,14 +321,14 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
     #[cfg(feature = "semantic")]
     {
         let semantic = index.semantic_status()?;
+        let partition = index.snapshot_search_partition()?;
         let manager = ModelManager::new(&default_sieve_data_dir());
-        let sparse_dir = manager.model_dir(DEFAULT_SPARSE_MODEL_NAME);
-        let sparse_ready = manager.is_cached(DEFAULT_SPARSE_MODEL_NAME);
+        let registry = manager.registry()?;
         if semantic.vectors == 0 {
-            println!("Vectors: none (run `sieve download-model`)");
+            println!("Dense vectors: none (run `sieve download-model`)");
         } else {
             println!(
-                "Vectors: {} ({}-dim, {})",
+                "Dense vectors: {} ({}-dim, {})",
                 semantic.vectors, semantic.dimension, DEFAULT_MODEL_NAME
             );
         }
@@ -319,16 +341,80 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
             "Semantic coverage: {}/{} chunks ({}%)",
             semantic.vectors, semantic.total_chunks, percent
         );
-        if semantic.model_cached {
-            println!("Dense model: cached at {}", semantic.model_dir.display());
-        }
+        println!("Models:");
         println!(
-            "SPLADE model: {} ({})",
-            if sparse_ready { "available" } else { "missing" },
-            sparse_dir.display()
+            "  Dense: {}",
+            if semantic.model_cached {
+                format!("{} (cached)", DEFAULT_MODEL_NAME)
+            } else {
+                format!("{} (missing)", DEFAULT_MODEL_NAME)
+            }
         );
-        println!("Retrieval modes: scan, bm25, semantic-scan, dense-kNN, delta");
+        println!(
+            "  SPLADE: {}",
+            if registry.sparse.is_some() {
+                "splade-cocondenser-ensembledistil (cached)".to_string()
+            } else {
+                "not found".to_string()
+            }
+        );
+        println!(
+            "  Event reranker: {}",
+            registry
+                .event_reranker
+                .as_ref()
+                .map(|handle| format!("{} (cached)", handle.name))
+                .unwrap_or_else(|| "not found".to_string())
+        );
+        println!(
+            "Partition: {} fresh / {} stable",
+            partition.fresh_ids.len(),
+            partition.indexed_ids.len()
+        );
+        println!(
+            "Retrieval modes: {}",
+            if registry.event_reranker.is_some() {
+                "scan, semantic-scan, splade-bm25, dense-knn, event-rerank"
+            } else {
+                "scan, semantic-scan, splade-bm25, dense-knn"
+            }
+        );
     }
+    Ok(())
+}
+
+#[cfg(feature = "semantic")]
+fn run_export_training(
+    output: &Path,
+    top_k: Option<usize>,
+    queries_file: Option<&Path>,
+) -> Result<()> {
+    let index_root = resolve_index_root(None)?;
+    if !is_index_root(&index_root) {
+        bail!("index does not exist: {}", index_root.display());
+    }
+    let index = Index::open_or_create(&index_root)
+        .with_context(|| format!("failed to open index at {}", index_root.display()))?;
+    let queries = if let Some(path) = queries_file {
+        fs::read_to_string(path)?
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let query_count = if queries.is_empty() {
+        DEFAULT_TRAINING_QUERIES.len()
+    } else {
+        queries.len()
+    };
+    let exported = export_training_data(&index, &queries, output, top_k.unwrap_or(64))?;
+    println!("Index: {}", index.root().display());
+    println!("Training queries: {query_count}");
+    println!("Exported rows: {exported}");
+    println!("Output: {}", output.display());
     Ok(())
 }
 
@@ -336,20 +422,25 @@ fn run_status(index_override: Option<&Path>) -> Result<()> {
 fn run_download_model(sparse: bool, all: bool) -> Result<()> {
     let manager = ModelManager::new(&default_sieve_data_dir());
     if sparse {
+        if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            println!(
+                "SPLADE model: available ({})",
+                manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            );
+        } else {
+            println!(
+                "SPLADE model not found at {}. Copy the SPLADE files into that directory.",
+                manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            );
+        }
         println!(
-            "SPLADE model: {} ({})",
-            if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
-                "available"
-            } else {
-                "missing"
-            },
-            manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            "Event reranker is trained on your corpus. Run: sieve export-training && train on Colab."
         );
         return Ok(());
     }
     let dense = manager.ensure_dense_model()?;
     println!(
-        "Model cached at {}",
+        "Dense model cached at {}",
         dense
             .model_path
             .parent()
@@ -359,14 +450,19 @@ fn run_download_model(sparse: bool, all: bool) -> Result<()> {
     println!("Model file: {}", dense.model_path.display());
     println!("Tokenizer file: {}", dense.tokenizer_path.display());
     if all {
+        if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+            println!(
+                "SPLADE model: available ({})",
+                manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            );
+        } else {
+            println!(
+                "SPLADE model not found at {}. Copy the SPLADE files into that directory.",
+                manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            );
+        }
         println!(
-            "SPLADE model: {} ({})",
-            if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
-                "available"
-            } else {
-                "missing"
-            },
-            manager.model_dir(DEFAULT_SPARSE_MODEL_NAME).display()
+            "Event reranker is trained on your corpus. Run: sieve export-training && train on Colab."
         );
     }
     Ok(())

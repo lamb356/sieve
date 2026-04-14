@@ -1,5 +1,10 @@
+use std::cmp::{Ordering, Reverse};
+use std::collections::{BinaryHeap, HashMap, VecDeque};
+
+use crate::df_prior::static_df_frac;
 use crate::semantic_query::{GroupId, PhraseId, TermId};
 use crate::surface::BoundaryMode;
+use crate::window_score::{compute_idf, score_window};
 
 pub struct CompiledScanQuery {
     pub ac: aho_corasick::AhoCorasick,
@@ -44,6 +49,7 @@ pub fn compile_scan_query(
     })
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MatchEvent {
     pub term_id: Option<TermId>,
     pub phrase_id: Option<PhraseId>,
@@ -57,6 +63,7 @@ pub struct MatchEvent {
 pub const WINDOW_BYTES: usize = 512;
 pub const WINDOW_STRIDE: usize = 256;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowAccumulator {
     pub wal_entry_id: u64,
     pub window_start: u32,
@@ -65,13 +72,42 @@ pub struct WindowAccumulator {
     pub has_anchor: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoredWindow {
+    pub score: f32,
+    pub wal_entry_id: u64,
+    pub window_start: u32,
+    pub window_end: u32,
+    pub events: Vec<MatchEvent>,
+    pub has_anchor: bool,
+}
+
+impl Eq for ScoredWindow {}
+
+impl Ord for ScoredWindow {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.score
+            .total_cmp(&other.score)
+            .then_with(|| self.wal_entry_id.cmp(&other.wal_entry_id))
+            .then_with(|| self.window_start.cmp(&other.window_start))
+            .then_with(|| self.window_end.cmp(&other.window_end))
+    }
+}
+
+impl PartialOrd for ScoredWindow {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub fn semantic_scan(
     compiled: &CompiledScanQuery,
     entries: &[(u64, &[u8])],
     query: &crate::semantic_query::SemanticQuery,
-) -> (Vec<WindowAccumulator>, Vec<u32>) {
-    let mut windows = Vec::new();
+    top_k: usize,
+) -> (Vec<ScoredWindow>, Vec<u32>) {
     let mut df_counts = vec![0u32; query.terms.len()];
+    let mut entry_events = Vec::with_capacity(entries.len());
 
     for (wal_entry_id, hay) in entries {
         let events = collect_entry_events(compiled, hay);
@@ -85,42 +121,86 @@ pub fn semantic_scan(
                 }
             }
         }
+        entry_events.push((*wal_entry_id, hay.len(), events));
+    }
 
-        for (window_start, window_end) in window_ranges(hay.len()) {
-            let mut bucket = Vec::new();
-            let mut has_anchor = false;
-            for event in &events {
-                if event.byte_start < window_end as u32 && event.byte_end > window_start as u32 {
-                    has_anchor |= event.is_anchor;
-                    bucket.push(MatchEvent {
-                        term_id: event.term_id,
-                        phrase_id: event.phrase_id,
-                        primary_group_id: event.primary_group_id,
-                        weight: event.weight,
-                        byte_start: event.byte_start,
-                        byte_end: event.byte_end,
-                        is_anchor: event.is_anchor,
-                    });
-                }
+    let idf: Vec<f32> = query
+        .terms
+        .iter()
+        .enumerate()
+        .map(|(idx, term)| {
+            compute_idf(
+                idx as TermId,
+                df_counts.get(idx).copied().unwrap_or_default(),
+                entries.len() as u32,
+                static_df_frac(&term.canonical),
+            )
+        })
+        .collect();
+
+    let mut heap: BinaryHeap<Reverse<ScoredWindow>> = BinaryHeap::new();
+    let limit = top_k.max(1);
+
+    for (wal_entry_id, hay_len, events) in &entry_events {
+        let mut deque: VecDeque<&MatchEvent> = VecDeque::new();
+        let mut front = 0usize;
+        for (window_start, window_end) in window_ranges(*hay_len) {
+            while deque
+                .front()
+                .is_some_and(|event| (event.byte_end as usize) <= window_start)
+            {
+                deque.pop_front();
             }
-            if !bucket.is_empty() {
-                windows.push(WindowAccumulator {
-                    wal_entry_id: *wal_entry_id,
-                    window_start: window_start as u32,
-                    window_end: window_end as u32,
-                    events: bucket,
-                    has_anchor,
-                });
+            while front < events.len() && (events[front].byte_start as usize) < window_end {
+                deque.push_back(&events[front]);
+                front += 1;
+            }
+            if deque.is_empty() {
+                continue;
+            }
+            let bucket: Vec<MatchEvent> = deque.iter().map(|event| (*event).clone()).collect();
+            let has_anchor = bucket.iter().any(|event| event.is_anchor);
+            let window = WindowAccumulator {
+                wal_entry_id: *wal_entry_id,
+                window_start: window_start as u32,
+                window_end: window_end as u32,
+                events: bucket.clone(),
+                has_anchor,
+            };
+            let score = score_window(&window, query, &idf);
+            if score <= 0.0 {
+                continue;
+            }
+            let scored = ScoredWindow {
+                score,
+                wal_entry_id: *wal_entry_id,
+                window_start: window.window_start,
+                window_end: window.window_end,
+                events: bucket,
+                has_anchor,
+            };
+            if heap.len() < limit {
+                heap.push(Reverse(scored));
+            } else if heap.peek().is_some_and(|min| scored.score > min.0.score) {
+                heap.pop();
+                heap.push(Reverse(scored));
             }
         }
     }
 
-    (windows, df_counts)
+    let mut top_windows: Vec<ScoredWindow> = heap.into_iter().map(|entry| entry.0).collect();
+    top_windows.sort_by(|left, right| {
+        right
+            .score
+            .total_cmp(&left.score)
+            .then_with(|| left.wal_entry_id.cmp(&right.wal_entry_id))
+            .then_with(|| left.window_start.cmp(&right.window_start))
+    });
+    (top_windows, df_counts)
 }
 
 fn collect_entry_events(compiled: &CompiledScanQuery, hay: &[u8]) -> Vec<MatchEvent> {
-    let mut best: std::collections::HashMap<(u32, u32, GroupId), (usize, MatchEvent)> =
-        std::collections::HashMap::new();
+    let mut best: HashMap<(u32, u32, GroupId), (usize, MatchEvent)> = HashMap::new();
     for mat in compiled.ac.find_overlapping_iter(hay) {
         let meta = &compiled.patterns[mat.pattern().as_usize()];
         let start = mat.start();
@@ -198,7 +278,20 @@ fn is_identifier_char(b: u8) -> bool {
 fn boundary_ok(hay: &[u8], start: usize, end: usize, mode: BoundaryMode) -> bool {
     match mode {
         BoundaryMode::None => true,
-        BoundaryMode::Word | BoundaryMode::Identifier => {
+        BoundaryMode::Word => {
+            let left = if start > 0 {
+                !hay[start - 1].is_ascii_alphanumeric()
+            } else {
+                true
+            };
+            let right = if end < hay.len() {
+                !hay[end].is_ascii_alphanumeric()
+            } else {
+                true
+            };
+            left && right
+        }
+        BoundaryMode::Identifier => {
             let left = if start > 0 {
                 !is_identifier_char(hay[start - 1])
             } else {
