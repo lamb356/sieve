@@ -13,6 +13,10 @@ pub fn is_steady_deadline(deadline: Duration) -> bool {
     deadline == T_STEADY_DEADLINE
 }
 
+pub fn is_zero_prep_deadline(deadline: Duration) -> bool {
+    deadline.is_zero()
+}
+
 pub fn run_benchmark(
     episodes: &[Episode],
     runners: &mut [Box<dyn Runner>],
@@ -46,7 +50,10 @@ pub fn run_benchmark(
                     .search_at_deadline(ep, *deadline, k)
                     .unwrap_or_default();
                 let latency = started.elapsed();
-                if !is_steady_deadline(*deadline) && latency > *deadline {
+                if !is_steady_deadline(*deadline)
+                    && !is_zero_prep_deadline(*deadline)
+                    && latency > *deadline
+                {
                     hits.clear();
                 }
                 out.push(EpisodeMetrics {

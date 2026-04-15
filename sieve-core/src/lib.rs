@@ -104,7 +104,7 @@ pub struct Index {
     sparse_encoder: Arc<RwLock<Option<Arc<crate::sparse::SpladeEncoder>>>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct SearchOptions {
     pub top_k: Option<usize>,
     #[cfg(feature = "semantic")]
@@ -119,6 +119,30 @@ pub struct SearchOptions {
     pub no_df_filter: bool,
     #[cfg(feature = "semantic")]
     pub random_expansion: bool,
+    #[cfg(feature = "semantic")]
+    pub allow_delta_fallback: bool,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            top_k: None,
+            #[cfg(feature = "semantic")]
+            fresh_only: false,
+            #[cfg(feature = "semantic")]
+            experimental_rerank: false,
+            #[cfg(feature = "semantic")]
+            no_expand: false,
+            #[cfg(feature = "semantic")]
+            no_window_scoring: false,
+            #[cfg(feature = "semantic")]
+            no_df_filter: false,
+            #[cfg(feature = "semantic")]
+            random_expansion: false,
+            #[cfg(feature = "semantic")]
+            allow_delta_fallback: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -198,6 +222,37 @@ pub struct SourceResultSet {
     pub source: ResultSource,
     pub weight: f64,
     pub results: Vec<ScoredResult>,
+}
+
+#[cfg(feature = "semantic")]
+pub fn filter_stale_only_source_sets(
+    source_sets: Vec<SourceResultSet>,
+    fresh_ids: &HashSet<u64>,
+    allow_stale_only_fusion: bool,
+) -> Vec<SourceResultSet> {
+    if allow_stale_only_fusion || fresh_ids.is_empty() {
+        return source_sets;
+    }
+    let has_any_fresh = source_sets.iter().any(|set| {
+        set.results
+            .iter()
+            .any(|result| fresh_ids.contains(&result.wal_entry_id))
+    });
+    if !has_any_fresh {
+        return source_sets;
+    }
+    source_sets
+        .into_iter()
+        .filter_map(|mut set| {
+            set.results
+                .retain(|result| fresh_ids.contains(&result.wal_entry_id));
+            if set.results.is_empty() {
+                None
+            } else {
+                Some(set)
+            }
+        })
+        .collect()
 }
 
 #[cfg(feature = "semantic")]
@@ -576,6 +631,7 @@ impl Index {
                         no_window_scoring: options.no_window_scoring,
                         no_df_filter: options.no_df_filter,
                         random_expansion: options.random_expansion,
+                        allow_delta_fallback: options.allow_delta_fallback,
                     },
                 )?;
                 if let Some(debug) = &semantic_outcome.debug {
@@ -592,8 +648,13 @@ impl Index {
                 source_sets.extend(semantic_outcome.source_sets.clone());
                 if !options.fresh_only {
                     let dense_started = Instant::now();
-                    let dense_sets =
-                        self.semantic_dense_result_sets(query, &active_metadata, &active_ids, top_k)?;
+                    let dense_sets = self.semantic_dense_result_sets(
+                        query,
+                        &active_metadata,
+                        &active_ids,
+                        top_k,
+                        options.allow_delta_fallback,
+                    )?;
                     timings.dense_knn += dense_started.elapsed();
                     source_sets.extend(dense_sets.into_iter().map(|(source, weight, results)| {
                         SourceResultSet {
@@ -603,6 +664,12 @@ impl Index {
                         }
                     }));
                 }
+                let fresh_id_set: HashSet<u64> = snapshot.fresh_ids.iter().collect();
+                let source_sets = filter_stale_only_source_sets(
+                    source_sets,
+                    &fresh_id_set,
+                    options.allow_delta_fallback,
+                );
                 let rrf_started = Instant::now();
                 let fused = weighted_rrf_fuse(
                     source_sets
@@ -647,6 +714,7 @@ impl Index {
                     &active_metadata,
                     &active_ids,
                     top_k,
+                    options.allow_delta_fallback,
                 )?;
                 timings.dense_knn += dense_started.elapsed();
                 source_sets.extend(dense_sets.into_iter().map(|(source, weight, results)| {
@@ -1332,6 +1400,7 @@ impl Index {
         active_metadata: &[WalMetaRecord],
         active_ids: &HashSet<u64>,
         top_k: usize,
+        allow_delta_fallback: bool,
     ) -> Result<Vec<(ResultSource, f64, Vec<ScoredResult>)>> {
         if !should_use_semantic(query) {
             return Ok(Vec::new());
@@ -1362,7 +1431,7 @@ impl Index {
             .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
             .cloned()
             .collect();
-        if !delta_entries.is_empty() && delta_entries.len() <= 50 {
+        if allow_delta_fallback && !delta_entries.is_empty() && delta_entries.len() <= 50 {
             let chunk_batches: Result<Vec<Vec<SourceChunk>>> = delta_entries
                 .iter()
                 .map(|entry| {

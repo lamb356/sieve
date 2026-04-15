@@ -7,7 +7,7 @@ use std::sync::{Mutex, OnceLock};
 use sieve_core::fusion::{rrf_fuse, ResultId, ResultSource, ScoredResult};
 use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME};
 use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMeta};
-use sieve_core::{Index, SearchOptions};
+use sieve_core::{filter_stale_only_source_sets, Index, SearchOptions, SourceResultSet};
 use tempfile::tempdir;
 
 fn home_lock() -> &'static Mutex<()> {
@@ -373,6 +373,52 @@ fn test_search_end_to_end_with_chunks() {
             && result.byte_range.0 < result.byte_range.1
             && result.snippet.contains("needle phrase lives here")
     }));
+}
+
+#[test]
+fn test_filter_stale_only_source_sets_keeps_sets_with_fresh_results() {
+    let fresh_scan = SourceResultSet {
+        source: ResultSource::RawScan,
+        weight: 0.90,
+        results: vec![ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: 100,
+                byte_start: 0,
+                byte_end: 8,
+            },
+            source_path: "fresh.rs".into(),
+            line_range: (1, 1),
+            chunk_id: 0,
+            snippet: "fresh".into(),
+            score: 1.0,
+            source_layer: ResultSource::RawScan,
+            wal_entry_id: 100,
+        }],
+    };
+    let stable_bm25 = SourceResultSet {
+        source: ResultSource::SpladeBm25,
+        weight: 1.10,
+        results: vec![ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: 200,
+                byte_start: 0,
+                byte_end: 8,
+            },
+            source_path: "stable.rs".into(),
+            line_range: (1, 1),
+            chunk_id: 0,
+            snippet: "stable".into(),
+            score: 10.0,
+            source_layer: ResultSource::SpladeBm25,
+            wal_entry_id: 200,
+        }],
+    };
+    let filtered = filter_stale_only_source_sets(
+        vec![fresh_scan.clone(), stable_bm25],
+        &std::collections::HashSet::from([100_u64]),
+        false,
+    );
+    assert_eq!(filtered, vec![fresh_scan]);
 }
 
 #[test]

@@ -250,3 +250,131 @@ fn test_run_benchmark_waits_for_t_steady() {
     assert!(!metrics[0].hit_at_5);
     assert!(metrics[1].hit_at_5);
 }
+
+#[derive(Default)]
+struct ZeroPrepRunner;
+
+impl Runner for ZeroPrepRunner {
+    fn name(&self) -> &'static str {
+        "zero-prep"
+    }
+
+    fn prepare_stable(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn begin_fresh_arrival(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn search_at_deadline(
+        &mut self,
+        ep: &Episode,
+        deadline: Duration,
+        _k: usize,
+    ) -> anyhow::Result<Vec<Hit>> {
+        assert_eq!(deadline, Duration::from_millis(0));
+        std::thread::sleep(Duration::from_millis(5));
+        Ok(vec![Hit {
+            path: ep.relevant_paths.iter().next().unwrap().clone(),
+            score: 1.0,
+            rank: 1,
+            latency: Duration::from_millis(5),
+        }])
+    }
+
+    fn cleanup(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn test_run_benchmark_zero_prep_records_results_without_budget_cutoff() {
+    let dir = tempdir().unwrap();
+    let corpus_root = dir.path().join("corpus");
+    let stage_dir = dir.path().join("stage");
+    std::fs::create_dir_all(&corpus_root).unwrap();
+    std::fs::create_dir_all(&stage_dir).unwrap();
+    let staged = stage_dir.join("fresh.py");
+    std::fs::write(&staged, "def answer():\n    return 42\n").unwrap();
+    let ep = Episode {
+        id: "ep-zero-prep".to_string(),
+        query: "answer function".to_string(),
+        corpus_root: corpus_root.clone(),
+        stable_root: corpus_root.clone(),
+        fresh_stage_root: staged,
+        fresh_live_root: corpus_root.join("fresh.py"),
+        relevant_paths: BTreeSet::from([PathBuf::from("fresh.py")]),
+        deadlines: vec![Duration::from_millis(0)],
+    };
+    let mut runners: Vec<Box<dyn Runner>> = vec![Box::new(ZeroPrepRunner)];
+    let metrics = run_benchmark(&[ep], &mut runners, 5);
+    assert_eq!(metrics.len(), 1);
+    assert!(metrics[0].hit_at_5);
+    assert!((metrics[0].recall_at_5 - 1.0).abs() < 1e-6);
+    assert!(metrics[0].query_latency >= Duration::from_millis(5));
+}
+
+#[derive(Default)]
+struct SlowDeadlineRunner;
+
+impl Runner for SlowDeadlineRunner {
+    fn name(&self) -> &'static str {
+        "slow-deadline"
+    }
+
+    fn prepare_stable(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn begin_fresh_arrival(&mut self, _ep: &Episode) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn search_at_deadline(
+        &mut self,
+        ep: &Episode,
+        deadline: Duration,
+        _k: usize,
+    ) -> anyhow::Result<Vec<Hit>> {
+        assert_eq!(deadline, Duration::from_millis(5));
+        std::thread::sleep(Duration::from_millis(10));
+        Ok(vec![Hit {
+            path: ep.relevant_paths.iter().next().unwrap().clone(),
+            score: 1.0,
+            rank: 1,
+            latency: Duration::from_millis(10),
+        }])
+    }
+
+    fn cleanup(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn test_run_benchmark_nonzero_deadline_still_enforces_budget_cutoff() {
+    let dir = tempdir().unwrap();
+    let corpus_root = dir.path().join("corpus");
+    let stage_dir = dir.path().join("stage");
+    std::fs::create_dir_all(&corpus_root).unwrap();
+    std::fs::create_dir_all(&stage_dir).unwrap();
+    let staged = stage_dir.join("fresh.py");
+    std::fs::write(&staged, "def answer():\n    return 42\n").unwrap();
+    let ep = Episode {
+        id: "ep-budget-cutoff".to_string(),
+        query: "answer function".to_string(),
+        corpus_root: corpus_root.clone(),
+        stable_root: corpus_root.clone(),
+        fresh_stage_root: staged,
+        fresh_live_root: corpus_root.join("fresh.py"),
+        relevant_paths: BTreeSet::from([PathBuf::from("fresh.py")]),
+        deadlines: vec![Duration::from_millis(5)],
+    };
+    let mut runners: Vec<Box<dyn Runner>> = vec![Box::new(SlowDeadlineRunner)];
+    let metrics = run_benchmark(&[ep], &mut runners, 5);
+    assert_eq!(metrics.len(), 1);
+    assert!(!metrics[0].hit_at_5);
+    assert_eq!(metrics[0].recall_at_5, 0.0);
+    assert!(metrics[0].query_latency >= Duration::from_millis(10));
+}

@@ -60,6 +60,18 @@ impl SieveRunner {
             ..Default::default()
         }
     }
+
+    fn search_options_for_deadline(&self, k: usize, deadline: Duration) -> SearchOptions {
+        let mut options = self.search_options(k);
+        if matches!(self.mode, SieveMode::Full) && !crate::eval::is_steady_deadline(deadline) {
+            options.allow_delta_fallback = false;
+        }
+        options
+    }
+
+    fn materializes_fresh_on_steady_state(&self) -> bool {
+        matches!(self.mode, SieveMode::Full)
+    }
 }
 
 impl Runner for SieveRunner {
@@ -100,16 +112,24 @@ impl Runner for SieveRunner {
     }
 
     fn wait_for_steady_state(&mut self, _ep: &Episode) -> Result<()> {
+        if !self.materializes_fresh_on_steady_state() {
+            return Ok(());
+        }
         let index = self.index.as_ref().context("sieve runner index missing")?;
         let _ = build_pending_shards(index)?;
         let _ = index.embed_pending(32)?;
         Ok(())
     }
 
-    fn search_at_deadline(&mut self, ep: &Episode, _deadline: Duration, k: usize) -> Result<Vec<Hit>> {
+    fn search_at_deadline(
+        &mut self,
+        ep: &Episode,
+        deadline: Duration,
+        k: usize,
+    ) -> Result<Vec<Hit>> {
         let index = self.index.as_ref().context("sieve runner index missing")?;
         let started = Instant::now();
-        let outcome = index.search_with_outcome(&ep.query, self.search_options(k))?;
+        let outcome = index.search_with_outcome(&ep.query, self.search_options_for_deadline(k, deadline))?;
         if let Some(debug_info) = &outcome.debug {
             debug!(
                 "sieve benchmark query timing: runner={} episode={} query={:?} mode={} splade_expand_ms={} aho_compile_ms={} semantic_scan_ms={} raw_scan_ms={} tantivy_query_ms={} dense_knn_ms={} rrf_fusion_ms={}",
@@ -193,4 +213,44 @@ fn collapse_results(results: &[SearchResult], k: usize, latency: Duration) -> Ve
             latency,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::SieveRunner;
+    use crate::eval::T_STEADY_DEADLINE;
+
+    #[test]
+    fn test_scan_only_runner_skips_index_materialization_at_steady_state() {
+        let runner = SieveRunner::scan_only();
+        assert!(!runner.materializes_fresh_on_steady_state());
+    }
+
+    #[test]
+    fn test_random_runner_skips_index_materialization_at_steady_state() {
+        let runner = SieveRunner::random_expansion();
+        assert!(!runner.materializes_fresh_on_steady_state());
+    }
+
+    #[test]
+    fn test_full_runner_materializes_fresh_on_steady_state() {
+        let runner = SieveRunner::full();
+        assert!(runner.materializes_fresh_on_steady_state());
+    }
+
+    #[test]
+    fn test_full_runner_disables_delta_fallback_before_steady_state() {
+        let runner = SieveRunner::full();
+        let opts = runner.search_options_for_deadline(5, Duration::from_millis(500));
+        assert!(!opts.allow_delta_fallback);
+    }
+
+    #[test]
+    fn test_full_runner_keeps_delta_fallback_at_steady_state() {
+        let runner = SieveRunner::full();
+        let opts = runner.search_options_for_deadline(5, T_STEADY_DEADLINE);
+        assert!(opts.allow_delta_fallback);
+    }
 }

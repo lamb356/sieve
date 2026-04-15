@@ -29,6 +29,8 @@ struct Cli {
     skip_ripgrep: bool,
     #[arg(long)]
     cache_dir: Option<PathBuf>,
+    #[arg(long)]
+    semantic_hard: bool,
 }
 
 fn main() -> Result<()> {
@@ -46,11 +48,19 @@ fn main() -> Result<()> {
     );
     let cache_dir = cli.cache_dir.unwrap_or_else(default_cache_dir);
     fs::create_dir_all(&cache_dir)?;
-    let track = CodeSearchNetTrack::setup(
-        &cache_dir.join("codesearchnet-stream"),
-        cli.n_stable,
-        cli.n_fresh,
-    )?;
+    let track = if cli.semantic_hard {
+        CodeSearchNetTrack::setup_semantic_hard(
+            &cache_dir.join("codesearchnet-stream"),
+            cli.n_stable,
+            cli.n_fresh,
+        )?
+    } else {
+        CodeSearchNetTrack::setup(
+            &cache_dir.join("codesearchnet-stream"),
+            cli.n_stable,
+            cli.n_fresh,
+        )?
+    };
 
     let mut runners: Vec<Box<dyn Runner>> = vec![
         Box::new(SieveRunner::full()),
@@ -66,20 +76,15 @@ fn main() -> Result<()> {
     }
 
     let metrics = run_benchmark(track.episodes(), &mut runners, 5);
-    print_report(
-        "CodeSearchNet Stream-1K",
-        cli.n_stable,
-        cli.n_fresh,
-        &metrics,
-    );
+    let track_name = if cli.semantic_hard {
+        "CodeSearchNet Stream-1K (semantic-hard subset)"
+    } else {
+        "CodeSearchNet Stream-1K"
+    };
+    print_report(track_name, cli.n_stable, cli.n_fresh, &metrics);
 
     if let Some(output) = cli.output {
-        let report = json_report(
-            "CodeSearchNet Stream-1K",
-            cli.n_stable,
-            cli.n_fresh,
-            &metrics,
-        );
+        let report = json_report(track_name, cli.n_stable, cli.n_fresh, &metrics);
         fs::write(output, serde_json::to_vec_pretty(&report)?)?;
     }
     Ok(())

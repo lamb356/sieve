@@ -84,8 +84,8 @@ impl Runner for EmbedKnnRunner {
         let embedder = load_embedder()?;
         let query = embedder.embed_query(&ep.query)?;
         let mut all = self.stable_vectors.clone();
-        if !deadline.is_zero() {
-            if let Ok(guard) = self.fresh_vectors.lock() {
+        if let Ok(guard) = self.fresh_vectors.lock() {
+            if deadline.is_zero() || !guard.is_empty() {
                 all.extend(guard.iter().cloned());
             }
         }

@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::eval::{aggregate_metrics, compute_zero_prep_retention, is_steady_deadline};
+use crate::eval::{
+    aggregate_metrics, compute_zero_prep_retention, is_steady_deadline, is_zero_prep_deadline,
+};
 use crate::types::{AggregateMetrics, EpisodeMetrics};
 
 #[derive(Debug, Serialize)]
@@ -88,9 +90,9 @@ pub fn print_report(track_name: &str, n_stable: usize, n_fresh: usize, metrics: 
     println!("--- Key Metrics ---");
     println!("ZeroPrepRetention@5:     {:.2}", zero_prep);
     if let Some(lift) = semantic_lift {
-        println!("Semantic Lift over rg:   {:+.2} Recall@5 at t=0", lift);
+        println!("Semantic Lift over rg:   {:+.2} Recall@5 at T+0", lift);
     }
-    println!("Time-to-Searchable (sieve):  0ms");
+    println!("Time-to-Searchable (sieve):  measured by actual T+0 query latency");
     if let Some(embed_final) =
         metric_value(&aggregates, "embed-knn", max_deadline(&deadlines), |m| {
             m.mean_recall_at_5
@@ -288,6 +290,8 @@ fn collect_runners(metrics: &[AggregateMetrics]) -> Vec<String> {
 fn format_deadline(deadline: Duration) -> String {
     if is_steady_deadline(deadline) {
         "T+steady".to_string()
+    } else if is_zero_prep_deadline(deadline) {
+        "T+0".to_string()
     } else if deadline.as_millis() < 1000 {
         format!("{}ms", deadline.as_millis())
     } else {
