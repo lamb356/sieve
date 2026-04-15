@@ -1,0 +1,6815 @@
+{
+  "track": "CodeSearchNet Stream-1K",
+  "n_stable": 20,
+  "n_fresh": 20,
+  "aggregates": [
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 155,
+      "p95_latency_ms": 161
+    },
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 153,
+      "p95_latency_ms": 165
+    },
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 151,
+      "p95_latency_ms": 173
+    },
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 148,
+      "p95_latency_ms": 175
+    },
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 150,
+      "p95_latency_ms": 170
+    },
+    {
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 146,
+      "p95_latency_ms": 153
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 17,
+      "p95_latency_ms": 85
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 50,
+      "p95_latency_ms": 88
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 22,
+      "p95_latency_ms": 87
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 26,
+      "p95_latency_ms": 94
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 21,
+      "p95_latency_ms": 89
+    },
+    {
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 18,
+      "p95_latency_ms": 84
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 157,
+      "p95_latency_ms": 165
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 148,
+      "p95_latency_ms": 156
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 149,
+      "p95_latency_ms": 179
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 147,
+      "p95_latency_ms": 161
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 151,
+      "p95_latency_ms": 162
+    },
+    {
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 0.9,
+      "mean_hit_at_5": 0.9,
+      "mean_mrr_at_5": 0.825,
+      "p50_latency_ms": 148,
+      "p95_latency_ms": 153
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 147,
+      "p95_latency_ms": 155
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 137,
+      "p95_latency_ms": 142
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 140,
+      "p95_latency_ms": 150
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 139,
+      "p95_latency_ms": 145
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 138,
+      "p95_latency_ms": 146
+    },
+    {
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 134,
+      "p95_latency_ms": 146
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 142,
+      "p95_latency_ms": 155
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 135,
+      "p95_latency_ms": 142
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 142,
+      "p95_latency_ms": 167
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 141,
+      "p95_latency_ms": 151
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 140,
+      "p95_latency_ms": 154
+    },
+    {
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 1.0,
+      "mean_hit_at_5": 1.0,
+      "mean_mrr_at_5": 1.0,
+      "p50_latency_ms": 133,
+      "p95_latency_ms": 137
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 144,
+      "p95_latency_ms": 162
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 137,
+      "p95_latency_ms": 144
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 140,
+      "p95_latency_ms": 155
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 139,
+      "p95_latency_ms": 145
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "mean_recall_at_5": 0.0,
+      "mean_hit_at_5": 0.0,
+      "mean_mrr_at_5": 0.0,
+      "p50_latency_ms": 140,
+      "p95_latency_ms": 149
+    },
+    {
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "mean_recall_at_5": 0.75,
+      "mean_hit_at_5": 0.75,
+      "mean_mrr_at_5": 0.4708333,
+      "p50_latency_ms": 161,
+      "p95_latency_ms": 171
+    }
+  ],
+  "episode_metrics": [
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 130
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 158
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 54
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 35
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 21
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 21
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 195
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 193
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 199
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 175
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 175
+    },
+    {
+      "episode_id": "codesearchnet-python-00000",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 172
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 164
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 167
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 164
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 21
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 63
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 41
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 21
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 167
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00001",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 158
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 162
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 46
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 32
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00002",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 163
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 8
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 24
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 8
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00003",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 176
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 29
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 19
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00004",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 163
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 168
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 171
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 9
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 31
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 12
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 8
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00005",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 158
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 158
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 130
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 160
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 4
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 20
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 5
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 9
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 4
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 163
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00006",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 162
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 130
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 167
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 168
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00007",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 167
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 168
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.33333334,
+      "query_latency_ms": 168
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 81
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 80
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 84
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 86
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 85
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 79
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 170
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00008",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 168
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 85
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 85
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 87
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 94
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 89
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 84
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 165
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 170
+    },
+    {
+      "episode_id": "codesearchnet-python-00009",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 165
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 160
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.25,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 50
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 22
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 25
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 27
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 19
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00010",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 165
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 46
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00011",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 179
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 160
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 70
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 88
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 75
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 75
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 75
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 70
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 158
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 164
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 173
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00012",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 129
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 162
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.25,
+      "query_latency_ms": 167
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 31
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 69
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 35
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 48
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 45
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 31
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00013",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 172
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 128
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 9
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 32
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 14
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 8
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 162
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00014",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 166
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.33333334,
+      "query_latency_ms": 162
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 23
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 51
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 27
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 22
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 21
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 160
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00015",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 181
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 151
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 130
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 132
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.5,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 86
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 88
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 98
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 97
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 92
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 90
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 157
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 169
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00016",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 0.25,
+      "query_latency_ms": 159
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 44
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 91
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 61
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 49
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 49
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 44
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 155
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 169
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 175
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00017",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 147
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 169
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 133
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 138
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 163
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 43
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 18
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 25
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 17
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 13
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 153
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 144
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00018",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 145
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 161
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 149
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 137
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-scan",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 131
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 140
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 141
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 136
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "sieve-random",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 135
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 134
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 500,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 142
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 1000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 139
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 5000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 143
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "splade-bm25",
+      "deadline_ms": 30000,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 154
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 0,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 22
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 100,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 64
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 28
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 26
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 38
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "ripgrep",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 22
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 0,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 156
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 100,
+      "recall_at_5": 0.0,
+      "hit_at_5": false,
+      "mrr_at_5": 0.0,
+      "query_latency_ms": 152
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 500,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 1000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 148
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 5000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 150
+    },
+    {
+      "episode_id": "codesearchnet-python-00019",
+      "runner_name": "embed-knn",
+      "deadline_ms": 30000,
+      "recall_at_5": 1.0,
+      "hit_at_5": true,
+      "mrr_at_5": 1.0,
+      "query_latency_ms": 146
+    }
+  ],
+  "zero_prep_retention_at_0ms": 1.0,
+  "semantic_lift_over_rg_at_0ms": 0.0
+}

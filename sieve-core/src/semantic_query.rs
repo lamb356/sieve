@@ -1,3 +1,5 @@
+use std::path::Path;
+
 pub const MAX_SEED_GROUPS: usize = 6;
 pub const MAX_TERMS: usize = 96;
 pub const MAX_ANCHORS: usize = 12;
@@ -7,6 +9,50 @@ pub const ANCHOR_WEIGHT_RATIO: f32 = 0.55;
 pub const MIN_TERM_WEIGHT_RATIO: f32 = 0.18;
 pub const MIN_AUX_GROUP_RATIO: f32 = 0.35;
 pub const SEED_CLAIM_RATIO: f32 = 0.20;
+
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub enum ContentType {
+    Code,
+    Prose,
+    Config,
+    Log,
+    Mixed,
+    #[default]
+    Unknown,
+}
+
+pub fn detect_content_type(path: &Path) -> ContentType {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some(
+            "rs" | "py" | "ts" | "tsx" | "js" | "jsx" | "go" | "c" | "cpp" | "h" | "hpp" | "java"
+            | "kt" | "swift" | "rb" | "php" | "cs" | "scala" | "zig" | "lua" | "sh" | "bash"
+            | "zsh" | "pl" | "r",
+        ) => ContentType::Code,
+        Some("md" | "txt" | "rst" | "tex" | "adoc" | "org") => ContentType::Prose,
+        Some("toml" | "yaml" | "yml" | "json" | "ini" | "cfg" | "conf" | "env" | "properties") => {
+            ContentType::Config
+        }
+        Some("log") => ContentType::Log,
+        _ => ContentType::Unknown,
+    }
+}
+
+impl ContentType {
+    pub fn from_path(path: &str) -> Self {
+        detect_content_type(Path::new(path))
+    }
+
+    pub fn is_code_like(self) -> bool {
+        matches!(self, Self::Code | Self::Mixed)
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SemanticCompileOptions {
@@ -22,6 +68,8 @@ pub type PhraseId = u16;
 pub struct SemanticQuery {
     pub raw_query: String,
     pub normalized_query: String,
+    pub content_type: ContentType,
+    pub tokens: Vec<QueryToken>,
     pub seeds: Vec<SeedToken>,
     pub groups: Vec<SemanticGroup>,
     pub terms: Vec<SemanticTerm>,
@@ -35,6 +83,23 @@ pub struct SeedToken {
     pub text: String,
     pub ordinal: u8,
     pub group_id: GroupId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TokenClass {
+    Word,
+    Namespace,
+    Dotted,
+    Numeric,
+    Compound,
+    Language,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueryToken {
+    pub text: String,
+    pub is_anchor: bool,
+    pub token_class: TokenClass,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,12 +149,14 @@ pub fn compile_semantic_query(
     raw_query: &str,
     sparse: &crate::sparse::SpladeEncoder,
     aliases: &crate::aliases::AliasLexicon,
+    content_type: ContentType,
 ) -> crate::Result<SemanticQuery> {
     compile_semantic_query_with_options(
         raw_query,
         sparse,
         aliases,
         SemanticCompileOptions::default(),
+        content_type,
     )
 }
 
@@ -98,6 +165,7 @@ pub fn compile_semantic_query_with_options(
     sparse: &crate::sparse::SpladeEncoder,
     aliases: &crate::aliases::AliasLexicon,
     options: SemanticCompileOptions,
+    content_type: ContentType,
 ) -> crate::Result<SemanticQuery> {
     compile_semantic_query_with(
         raw_query,
@@ -105,26 +173,35 @@ pub fn compile_semantic_query_with_options(
         &|vocab_id| sparse.vocab_piece(vocab_id).map(str::to_string),
         aliases,
         options,
+        content_type,
     )
 }
 
-fn compile_semantic_query_with<E, V>(
+pub fn compile_semantic_query_with<E, V>(
     raw_query: &str,
     encode: &E,
     vocab_piece: &V,
     aliases: &crate::aliases::AliasLexicon,
     options: SemanticCompileOptions,
+    content_type: ContentType,
 ) -> crate::Result<SemanticQuery>
 where
     E: Fn(&str) -> crate::Result<Vec<(u32, f32)>>,
     V: Fn(u32) -> Option<String>,
 {
     let normalized_query = normalize_query(raw_query);
-    let seed_texts = tokenize_content_tokens(&normalized_query);
+    let tokens = tokenize_query(&normalized_query, content_type);
+    let seed_texts = tokens
+        .iter()
+        .map(|token| token.text.clone())
+        .take(MAX_SEED_GROUPS)
+        .collect::<Vec<_>>();
     if seed_texts.is_empty() {
         return Ok(SemanticQuery {
             raw_query: raw_query.to_string(),
             normalized_query,
+            content_type,
+            tokens,
             seeds: Vec::new(),
             groups: Vec::new(),
             terms: Vec::new(),
@@ -134,7 +211,13 @@ where
         });
     }
     if options.no_expand {
-        return Ok(seed_only_query(raw_query, normalized_query, &seed_texts));
+        return Ok(seed_only_query(
+            raw_query,
+            normalized_query,
+            &tokens,
+            &seed_texts,
+            content_type,
+        ));
     }
 
     let full_weights = encode(&normalized_query)?;
@@ -143,7 +226,13 @@ where
         .map(|(_, weight)| *weight)
         .fold(0.0f32, f32::max);
     if full_max_weight <= 0.0 {
-        return Ok(seed_only_query(raw_query, normalized_query, &seed_texts));
+        return Ok(seed_only_query(
+            raw_query,
+            normalized_query,
+            &tokens,
+            &seed_texts,
+            content_type,
+        ));
     }
 
     let mut seeds = Vec::new();
@@ -313,6 +402,8 @@ where
     Ok(SemanticQuery {
         raw_query: raw_query.to_string(),
         normalized_query,
+        content_type,
+        tokens,
         seeds,
         groups,
         terms,
@@ -325,7 +416,9 @@ where
 fn seed_only_query(
     raw_query: &str,
     normalized_query: String,
+    tokens: &[QueryToken],
     seed_texts: &[String],
+    content_type: ContentType,
 ) -> SemanticQuery {
     let mut seeds = Vec::new();
     let mut groups = Vec::new();
@@ -365,12 +458,33 @@ fn seed_only_query(
     SemanticQuery {
         raw_query: raw_query.to_string(),
         normalized_query,
+        content_type,
+        tokens: tokens.to_vec(),
         seeds,
         groups,
         terms,
         phrases,
         query_order,
         total_group_importance,
+    }
+}
+
+impl SemanticQuery {
+    pub fn seed_only(raw_query: &str, content_type: ContentType) -> Self {
+        let normalized_query = normalize_query(raw_query);
+        let tokens = tokenize_query(&normalized_query, content_type);
+        let seed_texts = tokens
+            .iter()
+            .map(|token| token.text.clone())
+            .take(MAX_SEED_GROUPS)
+            .collect::<Vec<_>>();
+        seed_only_query(
+            raw_query,
+            normalized_query,
+            &tokens,
+            &seed_texts,
+            content_type,
+        )
     }
 }
 
@@ -520,29 +634,143 @@ fn build_phrases(
     phrases
 }
 
-fn tokenize_content_tokens(query: &str) -> Vec<String> {
+pub fn tokenize_query(query: &str, content_type: ContentType) -> Vec<QueryToken> {
+    match content_type {
+        ContentType::Code | ContentType::Mixed => tokenize_code_query(query),
+        ContentType::Prose | ContentType::Config | ContentType::Log | ContentType::Unknown => {
+            tokenize_prose_query(query)
+        }
+    }
+}
+
+fn tokenize_prose_query(query: &str) -> Vec<QueryToken> {
     let mut tokens = Vec::new();
     let mut current = String::new();
     for ch in query.chars() {
         if ch.is_alphanumeric() {
             current.push(ch);
         } else if !current.is_empty() {
-            maybe_push_token(&mut tokens, &mut current);
+            maybe_push_prose_token(&mut tokens, &mut current);
         }
     }
     if !current.is_empty() {
-        maybe_push_token(&mut tokens, &mut current);
+        maybe_push_prose_token(&mut tokens, &mut current);
     }
-    tokens.truncate(MAX_SEED_GROUPS);
-    tokens
+    dedup_query_tokens(tokens)
 }
 
-fn maybe_push_token(tokens: &mut Vec<String>, current: &mut String) {
+fn tokenize_code_query(query: &str) -> Vec<QueryToken> {
+    let mut tokens = Vec::new();
+    for raw in query.split_whitespace() {
+        let Some(primary) = normalize_code_query_token(raw) else {
+            continue;
+        };
+        push_query_token(
+            &mut tokens,
+            primary.clone(),
+            true,
+            classify_code_token(&primary),
+        );
+        for seed in secondary_code_seeds(&primary) {
+            push_query_token(&mut tokens, seed.clone(), false, classify_code_token(&seed));
+        }
+    }
+    dedup_query_tokens(tokens)
+}
+
+fn dedup_query_tokens(tokens: Vec<QueryToken>) -> Vec<QueryToken> {
+    let mut seen = std::collections::HashMap::<String, usize>::new();
+    let mut deduped: Vec<QueryToken> = Vec::new();
+    for token in tokens {
+        match seen.get(&token.text).copied() {
+            Some(index) => {
+                deduped[index].is_anchor |= token.is_anchor;
+            }
+            None => {
+                seen.insert(token.text.clone(), deduped.len());
+                deduped.push(token);
+            }
+        }
+    }
+    deduped
+}
+
+fn maybe_push_prose_token(tokens: &mut Vec<QueryToken>, current: &mut String) {
     let token = current.to_ascii_lowercase();
     current.clear();
-    if token.len() >= 3 && !is_stopword(&token) {
-        tokens.push(token);
+    if token.len() >= 2 && !is_stopword(&token) {
+        push_query_token(tokens, token, true, TokenClass::Word);
     }
+}
+
+fn push_query_token(
+    tokens: &mut Vec<QueryToken>,
+    text: String,
+    is_anchor: bool,
+    token_class: TokenClass,
+) {
+    if text.len() < 2 {
+        return;
+    }
+    tokens.push(QueryToken {
+        text,
+        is_anchor,
+        token_class,
+    });
+}
+
+fn normalize_code_query_token(raw: &str) -> Option<String> {
+    let trimmed = raw.trim_matches(|c: char| {
+        !c.is_ascii_alphanumeric()
+            && c != '_'
+            && c != ':'
+            && c != '.'
+            && c != '#'
+            && c != '+'
+            && c != '-'
+    });
+    if trimmed.is_empty() {
+        return None;
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+    match lowered.as_str() {
+        "c++" => Some("cpp".to_string()),
+        "c#" => Some("csharp".to_string()),
+        _ => Some(lowered),
+    }
+}
+
+fn classify_code_token(token: &str) -> TokenClass {
+    if token.chars().all(|ch| ch.is_ascii_digit()) {
+        TokenClass::Numeric
+    } else if token.contains("::") {
+        TokenClass::Namespace
+    } else if token.contains('.') {
+        TokenClass::Dotted
+    } else if token.contains('_') || token.chars().any(|ch| ch.is_ascii_digit()) {
+        TokenClass::Compound
+    } else if matches!(token, "cpp" | "csharp") {
+        TokenClass::Language
+    } else {
+        TokenClass::Word
+    }
+}
+
+fn secondary_code_seeds(token: &str) -> Vec<String> {
+    let mut seeds = Vec::new();
+    if token.contains("::") {
+        seeds.extend(token.split("::").map(str::to_string));
+    }
+    if token.contains('.') {
+        seeds.extend(token.split('.').map(str::to_string));
+    }
+    if token.contains('_') {
+        seeds.extend(token.split('_').map(str::to_string));
+    }
+    seeds.retain(|seed| seed.len() >= 2);
+    seeds.sort();
+    seeds.dedup();
+    seeds
 }
 
 fn normalize_query(query: &str) -> String {
@@ -654,7 +882,8 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::{
-        compile_semantic_query_with, normalize_query, SemanticCompileOptions, TermSource,
+        compile_semantic_query_with, normalize_query, ContentType, SemanticCompileOptions,
+        TermSource,
     };
 
     fn mock_vocab(id: u32) -> Option<String> {
@@ -687,6 +916,7 @@ mod tests {
             &mock_vocab,
             &aliases,
             SemanticCompileOptions::default(),
+            ContentType::Prose,
         )
         .unwrap();
         assert_eq!(query.seeds.len(), 2);
@@ -721,6 +951,7 @@ mod tests {
             &mock_vocab,
             &aliases,
             SemanticCompileOptions::default(),
+            ContentType::Prose,
         )
         .unwrap();
         assert_eq!(query.seeds.len(), 2);
@@ -762,6 +993,7 @@ mod tests {
             &mock_vocab,
             &aliases,
             SemanticCompileOptions::default(),
+            ContentType::Prose,
         )
         .unwrap();
         assert_eq!(calls.load(Ordering::SeqCst), 1);

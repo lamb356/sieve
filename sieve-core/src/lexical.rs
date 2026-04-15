@@ -50,6 +50,7 @@ pub(crate) struct LexicalSearchOutcome {
 pub enum TantivyFieldKind {
     Body,
     Ident,
+    Subtoken,
 }
 
 #[cfg(feature = "semantic")]
@@ -68,6 +69,7 @@ struct LexicalFields {
     source_path: Field,
     body_text: Field,
     ident_text: Field,
+    subtoken_text: Field,
     wal_entry_id: Field,
     chunk_id: Field,
     byte_start: Field,
@@ -126,6 +128,7 @@ pub fn build_pending_shards(index: &Index) -> Result<usize> {
             writer.add_document(doc!(
                 fields.body_text => chunk.text.clone(),
                 fields.ident_text => chunk.text.clone(),
+                fields.subtoken_text => subtoken_text_for_indexing(&chunk.text),
                 fields.source_path => entry.source_path.clone(),
                 fields.wal_entry_id => entry.wal_entry_id,
                 fields.chunk_id => chunk.chunk_id as u64,
@@ -492,6 +495,7 @@ pub fn merge_small_shards(shards_dir: &Path) -> Result<()> {
                     fields.source_path => source_path,
                     fields.body_text => body_text,
                     fields.ident_text => ident_text,
+                    fields.subtoken_text => subtoken_text_for_indexing(&stored_text),
                     fields.wal_entry_id => wal_entry_id,
                     fields.chunk_id => chunk_id,
                     fields.byte_start => byte_start,
@@ -534,6 +538,14 @@ pub fn lexical_schema() -> Schema {
     builder.add_text_field("body_text", TEXT | STORED);
     builder.add_text_field(
         "ident_text",
+        TextOptions::default().set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer(IDENT_TOKENIZER_NAME)
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        ),
+    );
+    builder.add_text_field(
+        "subtoken_text",
         TextOptions::default().set_indexing_options(
             TextFieldIndexing::default()
                 .set_tokenizer(IDENT_TOKENIZER_NAME)
@@ -600,11 +612,19 @@ pub fn semantic_tantivy_clauses(query: &SemanticQuery) -> Vec<SemanticTantivyCla
             });
             clauses.push(SemanticTantivyClause {
                 field: TantivyFieldKind::Ident,
-                text,
+                text: text.clone(),
                 boost,
                 is_anchor: term.is_anchor,
                 is_phrase: false,
                 group_id: Some(term.group_id),
+            });
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Subtoken,
+                boost,
+                is_anchor: term.is_anchor,
+                is_phrase: false,
+                group_id: Some(term.group_id),
+                text,
             });
         }
     }
@@ -633,6 +653,14 @@ pub fn semantic_tantivy_clauses(query: &SemanticQuery) -> Vec<SemanticTantivyCla
             });
             clauses.push(SemanticTantivyClause {
                 field: TantivyFieldKind::Ident,
+                text: text.clone(),
+                boost: phrase_boost(phrase.norm_weight),
+                is_anchor: phrase.is_anchor,
+                is_phrase: true,
+                group_id: phrase.component_groups.first().copied(),
+            });
+            clauses.push(SemanticTantivyClause {
+                field: TantivyFieldKind::Subtoken,
                 text,
                 boost: phrase_boost(phrase.norm_weight),
                 is_anchor: phrase.is_anchor,
@@ -670,6 +698,7 @@ pub fn build_semantic_tantivy_query(
         let field = match clause.field {
             TantivyFieldKind::Body => fields.body_text,
             TantivyFieldKind::Ident => fields.ident_text,
+            TantivyFieldKind::Subtoken => fields.subtoken_text,
         };
         let boosted: Box<dyn Query> = Box::new(BoostQuery::new(
             build_clause_query(field, &clause)?,
@@ -715,6 +744,7 @@ fn schema_fields(schema: &Schema) -> Option<LexicalFields> {
         source_path: schema.get_field("source_path").ok()?,
         body_text: schema.get_field("body_text").ok()?,
         ident_text: schema.get_field("ident_text").ok()?,
+        subtoken_text: schema.get_field("subtoken_text").ok()?,
         wal_entry_id: schema.get_field("wal_entry_id").ok()?,
         chunk_id: schema.get_field("chunk_id").ok()?,
         byte_start: schema.get_field("byte_start").ok()?,
@@ -822,6 +852,24 @@ fn build_clause_query(field: Field, clause: &SemanticTantivyClause) -> Result<Bo
             return Ok(Box::new(PhraseQuery::new(terms)));
         }
     }
+    if matches!(clause.field, TantivyFieldKind::Subtoken) {
+        let subtokens = crate::surface::split_identifier_subtokens(&clause.text);
+        if subtokens.len() >= 2 {
+            let should = subtokens
+                .into_iter()
+                .map(|token| {
+                    (
+                        tantivy::query::Occur::Should,
+                        Box::new(TermQuery::new(
+                            Term::from_field_text(field, &token),
+                            IndexRecordOption::WithFreqsAndPositions,
+                        )) as Box<dyn Query>,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Ok(Box::new(BooleanQuery::new(should)));
+        }
+    }
     Ok(Box::new(TermQuery::new(
         Term::from_field_text(field, &normalized),
         IndexRecordOption::WithFreqsAndPositions,
@@ -831,6 +879,7 @@ fn build_clause_query(field: Field, clause: &SemanticTantivyClause) -> Result<Bo
 #[cfg(feature = "semantic")]
 fn semantic_document_matches(query: &SemanticQuery, content: &str) -> bool {
     let hay = content.to_lowercase();
+    let hay_subtokens = subtoken_text_for_indexing(content);
     let mut matched_anchor = false;
 
     for phrase in &query.phrases {
@@ -863,10 +912,29 @@ fn semantic_document_matches(query: &SemanticQuery, content: &str) -> bool {
         let matched = variants
             .iter()
             .any(|variant| !variant.is_empty() && hay.contains(&variant.to_lowercase()));
-        if matched && term.is_anchor {
+        let subtoken_matched = variants.iter().any(|variant| {
+            crate::surface::split_identifier_subtokens(variant)
+                .into_iter()
+                .any(|token| hay_subtokens.contains(&token))
+        });
+        if (matched || subtoken_matched) && (term.is_anchor || query.content_type.is_code_like()) {
             matched_anchor = true;
         }
     }
 
     matched_anchor
+}
+
+fn subtoken_text_for_indexing(text: &str) -> String {
+    let mut parts = Vec::new();
+    for raw in text.split_whitespace() {
+        let cleaned = raw
+            .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != ':' && c != '.');
+        if cleaned.is_empty() {
+            continue;
+        }
+        parts.push(cleaned.to_ascii_lowercase());
+        parts.extend(crate::surface::split_identifier_subtokens(cleaned));
+    }
+    parts.join(" ")
 }

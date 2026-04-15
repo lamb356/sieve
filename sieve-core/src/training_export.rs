@@ -181,6 +181,7 @@ fn compile_training_query(
         sparse.as_deref(),
         aliases,
         &crate::SearchOptions::default(),
+        crate::semantic_query::ContentType::Prose,
     );
     Ok(match plan {
         QueryPlan::Semantic(query) => query,
@@ -309,6 +310,8 @@ fn fallback_semantic_query(raw_query: &str) -> SemanticQuery {
     SemanticQuery {
         raw_query: raw_query.to_string(),
         normalized_query: normalized,
+        content_type: crate::semantic_query::ContentType::Prose,
+        tokens: Vec::new(),
         seeds: Vec::new(),
         groups,
         terms,

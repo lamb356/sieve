@@ -129,7 +129,8 @@ impl Runner for SieveRunner {
     ) -> Result<Vec<Hit>> {
         let index = self.index.as_ref().context("sieve runner index missing")?;
         let started = Instant::now();
-        let outcome = index.search_with_outcome(&ep.query, self.search_options_for_deadline(k, deadline))?;
+        let outcome =
+            index.search_with_outcome(&ep.query, self.search_options_for_deadline(k, deadline))?;
         if let Some(debug_info) = &outcome.debug {
             debug!(
                 "sieve benchmark query timing: runner={} episode={} query={:?} mode={} splade_expand_ms={} aho_compile_ms={} semantic_scan_ms={} raw_scan_ms={} tantivy_query_ms={} dense_knn_ms={} rrf_fusion_ms={}",

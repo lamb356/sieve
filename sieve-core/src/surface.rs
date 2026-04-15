@@ -5,6 +5,7 @@ pub enum BoundaryMode {
     None,
     Word,
     Identifier,
+    CodeSubtoken,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,7 +70,13 @@ pub fn realize_surfaces(
         std::collections::HashMap::new();
 
     for term in &mut query.terms {
-        let variants = realize_term_variants(term, &seed_terms, &alias_terms, df_prior);
+        let variants = realize_term_variants(
+            term,
+            query.content_type,
+            &seed_terms,
+            &alias_terms,
+            df_prior,
+        );
         term.surface_variants = variants.clone();
         for variant in variants {
             push_pattern(
@@ -156,6 +163,7 @@ fn push_pattern(
 
 fn realize_term_variants(
     term: &crate::semantic_query::SemanticTerm,
+    content_type: crate::semantic_query::ContentType,
     seed_terms: &std::collections::HashSet<String>,
     alias_terms: &std::collections::HashSet<String>,
     df_prior: &dyn Fn(&str) -> f32,
@@ -216,6 +224,35 @@ fn realize_term_variants(
                 false,
             ),
         );
+    }
+    if content_type.is_code_like() && !term.is_anchor {
+        for variant in realize_code_subtoken(&norm) {
+            let kind = if variant.chars().all(|ch| ch.is_ascii_uppercase()) {
+                VariantKind::Upper
+            } else if variant
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_uppercase())
+            {
+                VariantKind::Title
+            } else {
+                VariantKind::Alias
+            };
+            add_variant(
+                &mut variants,
+                &variant,
+                kind,
+                BoundaryMode::CodeSubtoken,
+                quality_score(
+                    &variant,
+                    df_prior(&variant.to_ascii_lowercase()),
+                    term.norm_weight,
+                    false,
+                    true,
+                    false,
+                ),
+            );
+        }
     }
     variants
 }
@@ -461,4 +498,51 @@ fn is_stopword(token: &str) -> bool {
             | "to"
             | "with"
     )
+}
+
+pub fn realize_code_subtoken(term: &str) -> Vec<String> {
+    let mut out = vec![term.to_string()];
+    let lower = term.to_ascii_lowercase();
+    out.push(lower.clone());
+    if let Some(first) = term.chars().next() {
+        if first.is_ascii_lowercase() {
+            let cap: String = term
+                .chars()
+                .enumerate()
+                .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                .collect();
+            out.push(cap);
+        }
+    }
+    out.push(term.to_ascii_uppercase());
+    out.sort();
+    out.dedup();
+    out.retain(|variant| variant.len() >= 2);
+    out
+}
+
+pub(crate) fn split_identifier_subtokens(text: &str) -> Vec<String> {
+    let mut pieces = Vec::new();
+    let mut current = String::new();
+    let mut prev_is_lower = false;
+    for ch in text.chars() {
+        if matches!(ch, '_' | '-' | '.' | ':' | '/' | '\\') {
+            if !current.is_empty() {
+                pieces.push(current.to_ascii_lowercase());
+                current.clear();
+            }
+            prev_is_lower = false;
+            continue;
+        }
+        if ch.is_ascii_uppercase() && prev_is_lower && !current.is_empty() {
+            pieces.push(current.to_ascii_lowercase());
+            current.clear();
+        }
+        current.push(ch);
+        prev_is_lower = ch.is_ascii_lowercase();
+    }
+    if !current.is_empty() {
+        pieces.push(current.to_ascii_lowercase());
+    }
+    pieces
 }

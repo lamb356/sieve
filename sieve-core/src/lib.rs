@@ -56,7 +56,7 @@ use crate::model::DEFAULT_SPARSE_MODEL_NAME;
 #[cfg(feature = "semantic")]
 use crate::model::{ModelManager, DEFAULT_MODEL_NAME};
 #[cfg(feature = "semantic")]
-use crate::semantic_query::SemanticQuery;
+use crate::semantic_query::{ContentType, SemanticQuery};
 #[cfg(feature = "semantic")]
 use crate::semantic_scan::{compile_scan_query_with_options, SemanticScanOptions};
 #[cfg(feature = "semantic")]
@@ -101,7 +101,8 @@ pub struct Index {
     #[cfg(feature = "semantic")]
     dense_embedder: Arc<RwLock<Option<Arc<crate::embed::Embedder>>>>,
     #[cfg(feature = "semantic")]
-    sparse_encoder: Arc<RwLock<Option<Arc<crate::sparse::SpladeEncoder>>>>,
+    sparse_encoder:
+        Arc<RwLock<HashMap<crate::model::SparseRoute, Arc<crate::sparse::SpladeEncoder>>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +174,7 @@ pub fn plan_query(
     sparse: Option<&crate::sparse::SpladeEncoder>,
     aliases: &crate::aliases::AliasLexicon,
     options: &SearchOptions,
+    content_type: ContentType,
 ) -> QueryPlan {
     if raw.starts_with('/') && raw.ends_with('/') && raw.len() >= 2 {
         return QueryPlan::Regex(raw[1..raw.len() - 1].to_string());
@@ -191,8 +193,11 @@ pub fn plan_query(
             no_expand: options.no_expand,
             random_expansion: options.random_expansion,
         },
+        content_type,
     ) {
-        Ok(query) if query.terms.iter().any(|term| term.is_anchor) => QueryPlan::Semantic(Arc::new(query)),
+        Ok(query) if query.terms.iter().any(|term| term.is_anchor) => {
+            QueryPlan::Semantic(Arc::new(query))
+        }
         _ => QueryPlan::Lexical(raw.to_string()),
     }
 }
@@ -323,6 +328,8 @@ pub(crate) struct WalMetaRecord {
     pub(crate) line_range_start: usize,
     #[serde(default = "default_line_end")]
     pub(crate) line_range_end: usize,
+    #[serde(skip, default)]
+    pub(crate) content_type: ContentType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -332,6 +339,34 @@ pub struct SourceManifestEntry {
     pub size: u64,
     pub blake3_hash: String,
     pub wal_entry_id: u64,
+}
+
+#[cfg(feature = "semantic")]
+fn dominant_content_type(metadata: &[WalMetaRecord]) -> ContentType {
+    let mut counts = [0usize; 6];
+    for entry in metadata {
+        match entry.content_type {
+            ContentType::Code => counts[0] += 1,
+            ContentType::Prose => counts[1] += 1,
+            ContentType::Config => counts[2] += 1,
+            ContentType::Log => counts[3] += 1,
+            ContentType::Mixed => counts[4] += 1,
+            ContentType::Unknown => counts[5] += 1,
+        }
+    }
+    let (idx, _) = counts
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, count)| **count)
+        .unwrap_or((5, &0));
+    match idx {
+        0 => ContentType::Code,
+        1 => ContentType::Prose,
+        2 => ContentType::Config,
+        3 => ContentType::Log,
+        4 => ContentType::Mixed,
+        _ => ContentType::Unknown,
+    }
 }
 
 impl Index {
@@ -381,7 +416,7 @@ impl Index {
             #[cfg(feature = "semantic")]
             dense_embedder: Arc::new(RwLock::new(None)),
             #[cfg(feature = "semantic")]
-            sparse_encoder: Arc::new(RwLock::new(None)),
+            sparse_encoder: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -391,6 +426,7 @@ impl Index {
         content: impl Into<String>,
     ) -> Result<u64> {
         let source_path = source_path.into();
+        let content_type = ContentType::from_path(&source_path);
         let content = content.into();
         let content_bytes = content.as_bytes();
         let content_hash = hash_content(content_bytes);
@@ -418,6 +454,7 @@ impl Index {
             committed_at,
             line_range_start: 1,
             line_range_end: line_count,
+            content_type,
         };
 
         append_metadata(&self.wal_meta_path, &record)?;
@@ -524,14 +561,15 @@ impl Index {
 
         let shards_dir = self.root.join("segments");
         let aliases = AliasLexicon::built_in();
+        let content_type = dominant_content_type(&active_metadata);
         let plan_started = Instant::now();
         let plan = if (query.starts_with('/') && query.ends_with('/') && query.len() >= 2)
             || (query.starts_with('"') && query.ends_with('"') && query.len() >= 2)
         {
-            plan_query(query, None, &aliases, &options)
+            plan_query(query, None, &aliases, &options, content_type)
         } else {
-            let sparse = self.load_sparse_encoder()?;
-            plan_query(query, sparse.as_deref(), &aliases, &options)
+            let sparse = self.load_sparse_encoder_for_content_type(content_type)?;
+            plan_query(query, sparse.as_deref(), &aliases, &options, content_type)
         };
         timings.splade_expand = plan_started.elapsed();
         let coverage = if include_coverage {
@@ -1455,37 +1493,70 @@ impl Index {
 
     #[cfg(feature = "semantic")]
     fn load_sparse_encoder(&self) -> Result<Option<Arc<crate::sparse::SpladeEncoder>>> {
+        self.load_sparse_encoder_for_content_type(ContentType::Prose)
+    }
+
+    #[cfg(feature = "semantic")]
+    fn load_sparse_encoder_for_content_type(
+        &self,
+        content_type: ContentType,
+    ) -> Result<Option<Arc<crate::sparse::SpladeEncoder>>> {
+        let manager = self.model_manager();
+        let registry = manager.registry()?;
+        let route = crate::model::select_sparse_route(
+            content_type,
+            registry.sparse_code.is_some(),
+            registry.sparse.is_some(),
+        );
         if let Some(cached) = self
             .sparse_encoder
             .read()
             .map_err(|_| SieveError::LockPoisoned)?
-            .clone()
+            .get(&route.route)
+            .cloned()
         {
             return Ok(Some(cached));
         }
-
-        let manager = self.model_manager();
-        if !manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
-            return Ok(None);
+        if route.warned_fallback {
+            tracing::warn!(
+                content_type = ?content_type,
+                "SPLADE-Code unavailable; falling back to generic SPLADE"
+            );
         }
-        let handle = match manager.ensure_sparse_model() {
-            Ok(handle) => handle,
-            Err(err) => {
-                tracing::debug!(error = %err, "sparse model unavailable; falling back to lexical planning");
-                return Ok(None);
+
+        let handle = match route.route {
+            crate::model::SparseRoute::CodeSplade => match manager.ensure_code_sparse_model() {
+                Ok(handle) => handle,
+                Err(err) => {
+                    tracing::debug!(error = %err, "code sparse model unavailable; falling back to lexical planning");
+                    return Ok(None);
+                }
+            },
+            crate::model::SparseRoute::GenericSplade => {
+                if !manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
+                    return Ok(None);
+                }
+                match manager.ensure_sparse_model() {
+                    Ok(handle) => handle,
+                    Err(err) => {
+                        tracing::debug!(error = %err, "sparse model unavailable; falling back to lexical planning");
+                        return Ok(None);
+                    }
+                }
             }
         };
+
         match crate::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path) {
             Ok(encoder) => {
                 let encoder = Arc::new(encoder);
-                *self
-                    .sparse_encoder
+                self.sparse_encoder
                     .write()
-                    .map_err(|_| SieveError::LockPoisoned)? = Some(Arc::clone(&encoder));
+                    .map_err(|_| SieveError::LockPoisoned)?
+                    .insert(route.route, Arc::clone(&encoder));
                 Ok(Some(encoder))
             }
             Err(err) => {
-                tracing::debug!(error = %err, "failed to load SPLADE encoder; falling back to lexical planning");
+                tracing::debug!(error = %err, model = %handle.name, "failed to load SPLADE encoder; falling back to lexical planning");
                 Ok(None)
             }
         }
@@ -1600,7 +1671,8 @@ fn parse_metadata_line(line: &[u8], content_size: u64) -> Option<WalMetaRecord> 
         return None;
     }
 
-    let record: WalMetaRecord = serde_json::from_str(line).ok()?;
+    let mut record: WalMetaRecord = serde_json::from_str(line).ok()?;
+    record.content_type = ContentType::from_path(&record.source_path);
     let end = record.byte_offset.checked_add(record.byte_length)?;
     if end > content_size {
         return None;
@@ -1861,7 +1933,10 @@ pub(crate) fn semantic_scan_scored_windows(
     metadata: &[WalMetaRecord],
     semantic_query: &SemanticQuery,
     options: crate::semantic_scan::SemanticScanOptions,
-) -> Result<(Vec<(crate::semantic_scan::ScoredWindow, ScoredResult)>, SemanticScanTiming)> {
+) -> Result<(
+    Vec<(crate::semantic_scan::ScoredWindow, ScoredResult)>,
+    SemanticScanTiming,
+)> {
     if metadata.is_empty() {
         return Ok((Vec::new(), SemanticScanTiming::default()));
     }
@@ -1886,7 +1961,7 @@ pub(crate) fn semantic_scan_scored_windows(
         if end > mmap.len() {
             continue;
         }
-        entry_bytes.push((entry.wal_entry_id, &mmap[start..end]));
+        entry_bytes.push((entry.wal_entry_id, &mmap[start..end], entry.content_type));
     }
 
     let scan_started = Instant::now();
@@ -2337,7 +2412,9 @@ fn should_use_semantic(query: &str) -> bool {
         .collect::<String>();
     let tokens: Vec<&str> = normalized.split_whitespace().collect();
     (tokens.len() >= 2 && tokens.iter().any(|token| token.len() > 4))
-        || (had_code_punctuation && tokens.len() >= 2 && tokens.iter().any(|token| token.len() >= 3))
+        || (had_code_punctuation
+            && tokens.len() >= 2
+            && tokens.iter().any(|token| token.len() >= 3))
 }
 
 fn create_file_if_missing(path: &Path) -> Result<bool> {

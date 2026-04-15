@@ -4,7 +4,7 @@ use sieve_core::aliases::AliasLexicon;
 use sieve_core::df_prior::static_df_frac;
 use sieve_core::model::ModelManager;
 use sieve_core::semantic_query::{
-    PhrasePattern, SemanticGroup, SemanticQuery, SemanticTerm, TermSource,
+    ContentType, PhrasePattern, SemanticGroup, SemanticQuery, SemanticTerm, TermSource,
 };
 use sieve_core::semantic_scan::{
     compile_scan_query, filter_high_df_patterns, semantic_scan, MatchEvent, WindowAccumulator,
@@ -19,6 +19,8 @@ fn sample_query() -> SemanticQuery {
     SemanticQuery {
         raw_query: "failure handling".to_string(),
         normalized_query: "failure handling".to_string(),
+        content_type: ContentType::Prose,
+        tokens: Vec::new(),
         seeds: Vec::new(),
         groups: vec![
             SemanticGroup {
@@ -210,7 +212,11 @@ fn test_window_accumulator() {
     let query = sample_query();
     let (windows, dfs) = semantic_scan(
         &compiled,
-        &[(7, b"failure handling in a module".as_slice())],
+        &[(
+            7,
+            b"failure handling in a module".as_slice(),
+            ContentType::Prose,
+        )],
         &query,
         64,
     );
@@ -373,6 +379,7 @@ fn test_query_plan_selects_semantic() {
         Some(&encoder),
         &aliases,
         &SearchOptions::default(),
+        ContentType::Prose,
     );
     assert!(matches!(plan, QueryPlan::Semantic(_)));
 }
@@ -384,8 +391,9 @@ fn test_semantic_scan_end_to_end() {
     let patterns = realize_surfaces(&mut query, &|term| static_df_frac(term));
     let compiled = compile_scan_query(&patterns).unwrap();
     let entries = vec![(
-        11,
-        b"module failure_handling path\nretryable error path\n".as_slice(),
+        42,
+        b"failure handling in a module with retry logic".as_slice(),
+        ContentType::Prose,
     )];
     let (windows, dfs) = semantic_scan(&compiled, &entries, &query, 64);
     assert!(!windows.is_empty());
@@ -400,7 +408,12 @@ fn test_semantic_scan_zero_preprocess() {
     let patterns = realize_surfaces(&mut query, &|term| static_df_frac(term));
     let compiled = compile_scan_query(&patterns).unwrap();
     let raw = b"\0failure_handling::module\0retry";
-    let (windows, _) = semantic_scan(&compiled, &[(9, raw.as_slice())], &query, 64);
+    let (windows, _) = semantic_scan(
+        &compiled,
+        &[(9, raw.as_slice(), ContentType::Prose)],
+        &query,
+        64,
+    );
     assert!(!windows.is_empty());
     assert!(windows
         .iter()

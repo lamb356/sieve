@@ -92,7 +92,13 @@ impl CodeSearchNetTrack {
         n_stable: usize,
         n_fresh: usize,
     ) -> Result<Self> {
-        Self::setup_from_examples_with_mode(base_dir, examples, n_stable, n_fresh, QueryMode::Original)
+        Self::setup_from_examples_with_mode(
+            base_dir,
+            examples,
+            n_stable,
+            n_fresh,
+            QueryMode::Original,
+        )
     }
 
     pub fn setup_from_examples_with_mode(
@@ -326,11 +332,15 @@ fn semantic_hard_query_for_docstring(docstring: &str) -> Option<String> {
     let trimmed = normalized.trim();
     let query = if trimmed.starts_with("Extracts video ID from URL.") {
         "recover clip identifier from address"
-    } else if trimmed.starts_with("List all objects from the bucket with the give string prefix in name") {
+    } else if trimmed
+        .starts_with("List all objects from the bucket with the give string prefix in name")
+    {
         "show stored entries whose keys start with text"
     } else if trimmed.starts_with("Returns a cassandra Session object") {
         "open database client handle"
-    } else if trimmed.starts_with("Takes a cursor, and writes the BigQuery schema for the results to a local file system.") {
+    } else if trimmed.starts_with(
+        "Takes a cursor, and writes the BigQuery schema for the results to a local file system.",
+    ) {
         "store warehouse column blueprint on disk"
     } else if trimmed.starts_with("Executes the sql and returns a set of records.") {
         "retrieve tuples from relational backend"

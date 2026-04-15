@@ -92,8 +92,8 @@ pub struct MatchEvent {
     pub is_anchor: bool,
 }
 
-pub const WINDOW_BYTES: usize = 512;
-pub const WINDOW_STRIDE: usize = 256;
+pub const WINDOW_BYTES: usize = 384;
+pub const WINDOW_STRIDE: usize = 192;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowAccumulator {
@@ -134,7 +134,7 @@ impl PartialOrd for ScoredWindow {
 
 pub fn semantic_scan(
     compiled: &CompiledScanQuery,
-    entries: &[(u64, &[u8])],
+    entries: &[(u64, &[u8], crate::semantic_query::ContentType)],
     query: &crate::semantic_query::SemanticQuery,
     top_k: usize,
 ) -> (Vec<ScoredWindow>, Vec<u32>) {
@@ -149,7 +149,7 @@ pub fn semantic_scan(
 
 pub fn semantic_scan_with_options(
     compiled: &CompiledScanQuery,
-    entries: &[(u64, &[u8])],
+    entries: &[(u64, &[u8], crate::semantic_query::ContentType)],
     query: &crate::semantic_query::SemanticQuery,
     top_k: usize,
     options: SemanticScanOptions,
@@ -157,7 +157,7 @@ pub fn semantic_scan_with_options(
     let mut df_counts = vec![0u32; query.terms.len()];
     let mut entry_events = Vec::with_capacity(entries.len());
 
-    for (wal_entry_id, hay) in entries {
+    for (wal_entry_id, hay, content_type) in entries {
         let events = collect_entry_events(compiled, hay);
         let mut term_seen = vec![false; query.terms.len()];
         for event in &events {
@@ -169,7 +169,13 @@ pub fn semantic_scan_with_options(
                 }
             }
         }
-        entry_events.push((*wal_entry_id, hay.len(), events));
+        entry_events.push((
+            *wal_entry_id,
+            *content_type,
+            hay.len(),
+            events,
+            compute_windows(hay, *content_type),
+        ));
     }
 
     let idf: Vec<f32> = query
@@ -189,7 +195,7 @@ pub fn semantic_scan_with_options(
     if options.no_window_scoring {
         let mut windows = entry_events
             .into_iter()
-            .filter_map(|(wal_entry_id, hay_len, events)| {
+            .filter_map(|(wal_entry_id, _content_type, hay_len, events, _windows)| {
                 if events.is_empty() {
                     return None;
                 }
@@ -197,7 +203,11 @@ pub fn semantic_scan_with_options(
                 if !has_anchor {
                     return None;
                 }
-                let window_start = events.iter().map(|event| event.byte_start).min().unwrap_or(0);
+                let window_start = events
+                    .iter()
+                    .map(|event| event.byte_start)
+                    .min()
+                    .unwrap_or(0);
                 let window_end = events
                     .iter()
                     .map(|event| event.byte_end)
@@ -228,10 +238,10 @@ pub fn semantic_scan_with_options(
     let mut heap: BinaryHeap<Reverse<ScoredWindow>> = BinaryHeap::new();
     let limit = top_k.max(1);
 
-    for (wal_entry_id, hay_len, events) in &entry_events {
+    for (wal_entry_id, _content_type, _hay_len, events, windows) in &entry_events {
         let mut deque: VecDeque<&MatchEvent> = VecDeque::new();
         let mut front = 0usize;
-        for (window_start, window_end) in window_ranges(*hay_len) {
+        for &(window_start, window_end) in windows {
             while deque
                 .front()
                 .is_some_and(|event| (event.byte_end as usize) <= window_start)
@@ -338,7 +348,21 @@ fn should_replace(
                     && existing.phrase_id.is_none())))
 }
 
-fn window_ranges(len: usize) -> Vec<(usize, usize)> {
+pub fn compute_windows(
+    hay: &[u8],
+    content_type: crate::semantic_query::ContentType,
+) -> Vec<(usize, usize)> {
+    match content_type {
+        crate::semantic_query::ContentType::Code => code_windows(hay),
+        crate::semantic_query::ContentType::Prose => prose_windows(hay),
+        crate::semantic_query::ContentType::Mixed => prose_windows(hay),
+        crate::semantic_query::ContentType::Config
+        | crate::semantic_query::ContentType::Log
+        | crate::semantic_query::ContentType::Unknown => fixed_windows(hay.len()),
+    }
+}
+
+fn fixed_windows(len: usize) -> Vec<(usize, usize)> {
     if len == 0 {
         return Vec::new();
     }
@@ -358,8 +382,116 @@ fn window_ranges(len: usize) -> Vec<(usize, usize)> {
     ranges
 }
 
+fn prose_windows(hay: &[u8]) -> Vec<(usize, usize)> {
+    let text = String::from_utf8_lossy(hay);
+    let mut ranges = Vec::new();
+    let mut start = 0usize;
+    for paragraph in text.split("\n\n") {
+        let para_len = paragraph.len();
+        if para_len == 0 {
+            start = start.saturating_add(2);
+            continue;
+        }
+        let end = (start + para_len).min(hay.len());
+        ranges.push((start, end));
+        start = end.saturating_add(2).min(hay.len());
+    }
+    if ranges.is_empty() {
+        fixed_windows(hay.len())
+    } else {
+        ranges
+    }
+}
+
+fn code_windows(hay: &[u8]) -> Vec<(usize, usize)> {
+    if hay.is_empty() {
+        return Vec::new();
+    }
+    let text = String::from_utf8_lossy(hay);
+    let mut raw_blocks = Vec::new();
+    let mut start = 0usize;
+    for block in text.split("\n\n") {
+        let block_len = block.len();
+        if block_len == 0 {
+            start = start.saturating_add(2).min(hay.len());
+            continue;
+        }
+        let end = (start + block_len).min(hay.len());
+        raw_blocks.push((start, end));
+        start = end.saturating_add(2).min(hay.len());
+    }
+    if raw_blocks.is_empty() {
+        return fixed_windows(hay.len());
+    }
+
+    let mut merged = Vec::new();
+    let mut current = raw_blocks[0];
+    for block in raw_blocks.into_iter().skip(1) {
+        if current.1.saturating_sub(current.0) < 128 {
+            current.1 = block.1;
+        } else {
+            merged.push(current);
+            current = block;
+        }
+    }
+    merged.push(current);
+
+    let mut windows = Vec::new();
+    for (block_start, block_end) in merged {
+        let block_len = block_end.saturating_sub(block_start);
+        if block_len <= 1024 {
+            windows.push((block_start, block_end));
+            continue;
+        }
+        let mut segment_start = block_start;
+        while segment_start < block_end {
+            let segment_end = (segment_start + 1024).min(block_end);
+            windows.push((segment_start, segment_end));
+            if segment_end == block_end {
+                break;
+            }
+            let stride = ((segment_end - segment_start) / 2).max(128);
+            segment_start += stride;
+        }
+    }
+
+    if windows.is_empty() {
+        fixed_windows(hay.len())
+    } else {
+        windows
+    }
+}
+
 fn is_identifier_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
+}
+
+fn is_code_separator(b: u8) -> bool {
+    matches!(b, b'_' | b':' | b'.' | b'/' | b'\\' | b'-') || b.is_ascii_whitespace()
+}
+
+fn is_subtoken_left_boundary(hay: &[u8], start: usize) -> bool {
+    if start == 0 {
+        return true;
+    }
+    let prev = hay[start - 1];
+    let current = hay[start];
+    is_code_separator(prev)
+        || (prev.is_ascii_lowercase() && current.is_ascii_uppercase())
+        || (prev.is_ascii_digit() && current.is_ascii_alphabetic())
+        || (prev.is_ascii_alphabetic() && current.is_ascii_digit())
+}
+
+fn is_subtoken_right_boundary(hay: &[u8], end: usize) -> bool {
+    if end >= hay.len() {
+        return true;
+    }
+    let prev = hay[end - 1];
+    let next = hay[end];
+    is_code_separator(next)
+        || (prev.is_ascii_lowercase() && next.is_ascii_uppercase())
+        || (prev.is_ascii_digit() && next.is_ascii_alphabetic())
+        || (prev.is_ascii_alphabetic() && next.is_ascii_digit())
 }
 
 fn boundary_ok(hay: &[u8], start: usize, end: usize, mode: BoundaryMode) -> bool {
@@ -390,6 +522,9 @@ fn boundary_ok(hay: &[u8], start: usize, end: usize, mode: BoundaryMode) -> bool
                 true
             };
             left && right
+        }
+        BoundaryMode::CodeSubtoken => {
+            is_subtoken_left_boundary(hay, start) && is_subtoken_right_boundary(hay, end)
         }
     }
 }

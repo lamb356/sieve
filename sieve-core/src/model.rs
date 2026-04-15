@@ -9,6 +9,7 @@ use crate::{Result, SieveError};
 
 pub const DEFAULT_MODEL_NAME: &str = "bge-small-en-v1.5";
 pub const DEFAULT_SPARSE_MODEL_NAME: &str = "splade";
+pub const DEFAULT_CODE_SPARSE_MODEL_NAME: &str = "splade-code";
 const DENSE_MODEL_URL: &str =
     "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
 const DENSE_TOKENIZER_URL: &str =
@@ -32,6 +33,7 @@ pub struct ModelManager {
 pub struct ModelRegistry {
     pub dense: Option<DenseModelHandle>,
     pub sparse: Option<SparseModelHandle>,
+    pub sparse_code: Option<SparseModelHandle>,
     pub event_reranker: Option<EventModelHandle>,
 }
 
@@ -49,6 +51,41 @@ pub struct SparseModelHandle {
     pub name: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SparseRoute {
+    GenericSplade,
+    CodeSplade,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SparseRouteDecision {
+    pub route: SparseRoute,
+    pub warned_fallback: bool,
+}
+
+pub fn select_sparse_route(
+    content_type: crate::semantic_query::ContentType,
+    code_model_available: bool,
+    generic_model_available: bool,
+) -> SparseRouteDecision {
+    if content_type.is_code_like() && code_model_available {
+        return SparseRouteDecision {
+            route: SparseRoute::CodeSplade,
+            warned_fallback: false,
+        };
+    }
+    if content_type.is_code_like() && generic_model_available {
+        return SparseRouteDecision {
+            route: SparseRoute::GenericSplade,
+            warned_fallback: true,
+        };
+    }
+    SparseRouteDecision {
+        route: SparseRoute::GenericSplade,
+        warned_fallback: false,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventModelHandle {
     pub model_path: PathBuf,
@@ -59,6 +96,7 @@ pub struct EventModelHandle {
 struct CachedModels {
     dense: Option<DenseModelHandle>,
     sparse: Option<SparseModelHandle>,
+    sparse_code: Option<SparseModelHandle>,
     event_reranker: Option<EventModelHandle>,
 }
 
@@ -111,6 +149,26 @@ impl ModelManager {
         Ok(handle)
     }
 
+    pub fn ensure_code_sparse_model(&self) -> Result<SparseModelHandle> {
+        let model_path = self.code_sparse_model_path();
+        let tokenizer_path = self.code_sparse_tokenizer_path();
+        let data_path = self.code_sparse_model_data_path();
+        if !model_path.is_file() || !tokenizer_path.is_file() || !data_path.is_file() {
+            return Err(SieveError::Message(format!(
+                "SPLADE-Code model not available at {}",
+                self.model_dir(DEFAULT_CODE_SPARSE_MODEL_NAME).display()
+            )));
+        }
+        let handle = SparseModelHandle {
+            model_path,
+            tokenizer_path,
+            name: DEFAULT_CODE_SPARSE_MODEL_NAME.to_string(),
+        };
+        let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
+        state.sparse_code = Some(handle.clone());
+        Ok(handle)
+    }
+
     pub fn ensure_event_model(&self) -> Result<Option<EventModelHandle>> {
         let model_path = self.event_model_path();
         if !model_path.is_file() {
@@ -141,6 +199,13 @@ impl ModelManager {
                 name: DEFAULT_SPARSE_MODEL_NAME.to_string(),
             });
         }
+        if state.sparse_code.is_none() && self.is_cached(DEFAULT_CODE_SPARSE_MODEL_NAME) {
+            state.sparse_code = Some(SparseModelHandle {
+                model_path: self.code_sparse_model_path(),
+                tokenizer_path: self.code_sparse_tokenizer_path(),
+                name: DEFAULT_CODE_SPARSE_MODEL_NAME.to_string(),
+            });
+        }
         if state.event_reranker.is_none() && self.event_model_path().is_file() {
             state.event_reranker = Some(EventModelHandle {
                 model_path: self.event_model_path(),
@@ -150,6 +215,7 @@ impl ModelManager {
         Ok(ModelRegistry {
             dense: state.dense.clone(),
             sparse: state.sparse.clone(),
+            sparse_code: state.sparse_code.clone(),
             event_reranker: state.event_reranker.clone(),
         })
     }
@@ -160,6 +226,11 @@ impl ModelManager {
                 self.sparse_model_path().is_file()
                     && self.sparse_model_data_path().is_file()
                     && self.sparse_tokenizer_path().is_file()
+            }
+            DEFAULT_CODE_SPARSE_MODEL_NAME => {
+                self.code_sparse_model_path().is_file()
+                    && self.code_sparse_model_data_path().is_file()
+                    && self.code_sparse_tokenizer_path().is_file()
             }
             _ => {
                 self.model_dir(model_name).join(MODEL_FILE_NAME).is_file()
@@ -187,6 +258,21 @@ impl ModelManager {
 
     pub fn sparse_tokenizer_path(&self) -> PathBuf {
         self.model_dir(DEFAULT_SPARSE_MODEL_NAME)
+            .join(SPARSE_TOKENIZER_RELATIVE_PATH)
+    }
+
+    pub fn code_sparse_model_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_CODE_SPARSE_MODEL_NAME)
+            .join(SPARSE_MODEL_FILE_NAME)
+    }
+
+    pub fn code_sparse_model_data_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_CODE_SPARSE_MODEL_NAME)
+            .join(SPARSE_MODEL_DATA_FILE_NAME)
+    }
+
+    pub fn code_sparse_tokenizer_path(&self) -> PathBuf {
+        self.model_dir(DEFAULT_CODE_SPARSE_MODEL_NAME)
             .join(SPARSE_TOKENIZER_RELATIVE_PATH)
     }
 

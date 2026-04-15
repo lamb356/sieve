@@ -5,7 +5,9 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use sieve_core::fusion::{rrf_fuse, ResultId, ResultSource, ScoredResult};
-use sieve_core::model::{ModelManager, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME};
+use sieve_core::model::{
+    ModelManager, DEFAULT_CODE_SPARSE_MODEL_NAME, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME,
+};
 use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMeta};
 use sieve_core::{filter_stale_only_source_sets, Index, SearchOptions, SourceResultSet};
 use tempfile::tempdir;
@@ -114,7 +116,13 @@ fn test_search_without_model_degrades_gracefully() {
         )
         .unwrap();
     let results = index
-        .search("retry_with_backoff", SearchOptions { top_k: Some(5), ..Default::default() })
+        .search(
+            "retry_with_backoff",
+            SearchOptions {
+                top_k: Some(5),
+                ..Default::default()
+            },
+        )
         .unwrap();
     assert!(!results.is_empty());
     assert!(results[0].source_layer != ResultSource::HotVector);
@@ -351,6 +359,30 @@ fn test_model_manager_sparse_uses_manual_copy_layout() {
 }
 
 #[test]
+fn test_model_manager_code_sparse_uses_manual_copy_layout() {
+    let dir = tempdir().unwrap();
+    let manager = ModelManager::new(dir.path());
+    let sparse_dir = manager.model_dir(DEFAULT_CODE_SPARSE_MODEL_NAME);
+    fs::create_dir_all(sparse_dir.join("splade-tokenizer")).unwrap();
+    fs::write(sparse_dir.join("splade.onnx"), b"onnx").unwrap();
+    fs::write(sparse_dir.join("splade.onnx.data"), b"weights").unwrap();
+    fs::write(
+        sparse_dir.join("splade-tokenizer").join("tokenizer.json"),
+        b"{}",
+    )
+    .unwrap();
+
+    assert!(manager.is_cached(DEFAULT_CODE_SPARSE_MODEL_NAME));
+
+    let handle = manager.ensure_code_sparse_model().unwrap();
+    assert_eq!(handle.model_path, sparse_dir.join("splade.onnx"));
+    assert_eq!(
+        handle.tokenizer_path,
+        sparse_dir.join("splade-tokenizer").join("tokenizer.json")
+    );
+}
+
+#[test]
 fn test_search_end_to_end_with_chunks() {
     let dir = tempdir().unwrap();
     let index = Index::open_or_create(dir.path()).unwrap();
@@ -363,7 +395,13 @@ fn test_search_end_to_end_with_chunks() {
     sieve_core::lexical::build_pending_shards(&index).unwrap();
 
     let results = index
-        .search("needle phrase", SearchOptions { top_k: Some(10), ..Default::default() })
+        .search(
+            "needle phrase",
+            SearchOptions {
+                top_k: Some(10),
+                ..Default::default()
+            },
+        )
         .unwrap();
 
     assert!(!results.is_empty());

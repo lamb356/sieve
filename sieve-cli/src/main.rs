@@ -76,6 +76,8 @@ enum Commands {
     DownloadModel {
         #[arg(long)]
         sparse: bool,
+        #[arg(long = "splade-code")]
+        splade_code: bool,
         #[arg(long)]
         all: bool,
     },
@@ -153,14 +155,15 @@ fn run() -> Result<()> {
             queries,
         } => run_export_training(&output, top_k, queries.as_deref()),
         #[cfg(feature = "semantic")]
-        Commands::DownloadModel { sparse, all } => run_download_model(sparse, all),
+        Commands::DownloadModel {
+            sparse,
+            splade_code,
+            all,
+        } => run_download_model(sparse, splade_code, all),
     }
 }
 
-fn run_index(
-    path: &Path,
-    #[cfg(feature = "semantic")] no_embed: bool,
-) -> Result<()> {
+fn run_index(path: &Path, #[cfg(feature = "semantic")] no_embed: bool) -> Result<()> {
     let source_root = path
         .canonicalize()
         .with_context(|| format!("failed to resolve source path {}", path.display()))?;
@@ -501,8 +504,12 @@ fn run_export_training(
 }
 
 #[cfg(feature = "semantic")]
-fn run_download_model(sparse: bool, all: bool) -> Result<()> {
+fn run_download_model(sparse: bool, splade_code: bool, all: bool) -> Result<()> {
     let manager = ModelManager::new(&default_sieve_data_dir());
+    if splade_code {
+        println!("SPLADE-Code model download not yet implemented (candidate generation overhaul blocker)");
+        return Ok(());
+    }
     if sparse {
         if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
             println!(

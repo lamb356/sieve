@@ -42,9 +42,10 @@ impl SpladeTantivyRunner {
             return Ok(None);
         }
         let handle = manager.ensure_sparse_model()?;
-        let encoder = sieve_core::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path)
-            .ok()
-            .map(Arc::new);
+        let encoder =
+            sieve_core::sparse::SpladeEncoder::load(&handle.model_path, &handle.tokenizer_path)
+                .ok()
+                .map(Arc::new);
         self.sparse = encoder.clone();
         Ok(encoder)
     }
@@ -105,6 +106,7 @@ impl Runner for SpladeTantivyRunner {
             sparse.as_ref(),
             &self.aliases,
             SemanticCompileOptions::default(),
+            sieve_core::semantic_query::ContentType::Code,
         )?;
         let started = Instant::now();
         let outcome = index.search_semantic_query(
