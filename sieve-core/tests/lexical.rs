@@ -59,7 +59,7 @@ fn test_hybrid_search() {
 
     let results = index
         .search(
-            "TODO",
+            "\"TODO\"",
             SearchOptions {
                 top_k: Some(10),
                 ..Default::default()

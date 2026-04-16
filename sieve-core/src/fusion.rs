@@ -15,6 +15,7 @@ pub enum ResultSource {
     EventReranked,
     HotVector,
     DeltaFallback,
+    QueryPromoted,
     Fused,
 }
 
@@ -29,9 +30,25 @@ impl ResultSource {
             Self::EventReranked => "event-reranked",
             Self::HotVector => "vec",
             Self::DeltaFallback => "delta",
+            Self::QueryPromoted => "promoted",
             Self::Fused => "fused",
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CoverageState {
+    Complete,
+    Partial(f32),
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayerResults {
+    pub source: ResultSource,
+    pub weight: f64,
+    pub results: Vec<ScoredResult>,
+    pub coverage: CoverageState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,17 +77,70 @@ pub fn weighted_rrf_fuse(
     result_sets: Vec<(ResultSource, f64, Vec<ScoredResult>)>,
     k: f64,
 ) -> Vec<ScoredResult> {
-    let mut fused: Vec<(ScoredResult, f64)> = Vec::new();
+    let result_sets = result_sets
+        .into_iter()
+        .map(|(source, weight, results)| LayerResults {
+            source,
+            weight,
+            results,
+            coverage: CoverageState::Complete,
+        })
+        .collect();
+    coverage_aware_rrf_fuse(result_sets, k)
+}
 
-    for (source, weight, result_set) in result_sets {
-        for (rank, result) in result_set.into_iter().enumerate() {
-            let contribution = weight / (k + rank as f64 + 1.0);
-            if let Some((existing, best_raw_score)) = fused.iter_mut().find(|(existing, _)| {
-                existing.result_id.wal_entry_id == result.result_id.wal_entry_id
-                    && range_iou(existing.result_id, result.result_id) > 0.5
-            }) {
+pub fn compute_layer_weight(
+    base_weight: f64,
+    coverage: &CoverageState,
+    layer_confidence: f64,
+) -> f64 {
+    let coverage_factor = match coverage {
+        CoverageState::Complete => 1.0,
+        CoverageState::Partial(frac) => frac.clamp(0.0, 1.0) as f64,
+        CoverageState::Unavailable => 0.0,
+    };
+    let confidence_bonus = if matches!(coverage, CoverageState::Complete) {
+        1.0 + layer_confidence.max(0.0)
+    } else {
+        1.0
+    };
+    base_weight * coverage_factor * confidence_bonus
+}
+
+pub fn coverage_aware_rrf_fuse(result_sets: Vec<LayerResults>, k: f64) -> Vec<ScoredResult> {
+    let complete_count = result_sets
+        .iter()
+        .filter(|set| matches!(set.coverage, CoverageState::Complete) && !set.results.is_empty())
+        .count();
+    let mut fused: Vec<(ScoredResult, f64, bool, bool)> = Vec::new();
+
+    for layer in result_sets {
+        if matches!(layer.coverage, CoverageState::Unavailable) || layer.results.is_empty() {
+            continue;
+        }
+        let layer_confidence =
+            if complete_count == 1 && matches!(layer.coverage, CoverageState::Complete) {
+                score_gap_confidence(&layer.results)
+            } else {
+                0.0
+            };
+        let layer_weight = compute_layer_weight(layer.weight, &layer.coverage, layer_confidence);
+        if layer_weight <= 0.0 {
+            continue;
+        }
+
+        for (rank, result) in layer.results.into_iter().enumerate() {
+            let contribution = layer_weight / (k + rank as f64 + 1.0);
+            if let Some((existing, best_raw_score, seen_complete, seen_partial)) =
+                fused.iter_mut().find(|(existing, _, _, _)| {
+                    existing.result_id.wal_entry_id == result.result_id.wal_entry_id
+                        && range_iou(existing.result_id, result.result_id) > 0.5
+                })
+            {
                 existing.score += contribution;
                 existing.source_layer = ResultSource::Fused;
+                *seen_complete |= matches!(layer.coverage, CoverageState::Complete);
+                *seen_partial |= matches!(layer.coverage, CoverageState::Partial(_));
                 if result.score > *best_raw_score
                     || (result.score == *best_raw_score
                         && result.snippet.len() > existing.snippet.len())
@@ -91,17 +161,39 @@ pub fn weighted_rrf_fuse(
                 let raw_score = result.score;
                 let mut fused_result = result;
                 fused_result.score = contribution;
-                fused_result.source_layer = if source == ResultSource::Fused {
+                fused_result.source_layer = if layer.source == ResultSource::Fused {
                     fused_result.source_layer
                 } else {
                     ResultSource::Fused
                 };
-                fused.push((fused_result, raw_score));
+                fused.push((
+                    fused_result,
+                    raw_score,
+                    matches!(layer.coverage, CoverageState::Complete),
+                    matches!(layer.coverage, CoverageState::Partial(_)),
+                ));
             }
         }
     }
 
-    let mut results: Vec<ScoredResult> = fused.into_iter().map(|(result, _)| result).collect();
+    if complete_count == 1 {
+        for (result, _raw_score, seen_complete, seen_partial) in &mut fused {
+            if *seen_complete && !*seen_partial {
+                result.score *= 1.5;
+            } else if *seen_complete {
+                result.score *= 1.15;
+            }
+        }
+    } else {
+        for (result, _raw_score, seen_complete, seen_partial) in &mut fused {
+            if *seen_complete && !*seen_partial {
+                result.score *= 1.35;
+            }
+        }
+    }
+
+    let mut results: Vec<ScoredResult> =
+        fused.into_iter().map(|(result, _, _, _)| result).collect();
     results.sort_by(|a, b| {
         b.score
             .partial_cmp(&a.score)
@@ -110,6 +202,22 @@ pub fn weighted_rrf_fuse(
             .then_with(|| a.line_range.0.cmp(&b.line_range.0))
     });
     results
+}
+
+fn score_gap_confidence(results: &[ScoredResult]) -> f64 {
+    if results.is_empty() {
+        return 0.0;
+    }
+    if results.len() == 1 {
+        return 1.0;
+    }
+    let first = results[0].score;
+    let second = results[1].score;
+    if !first.is_finite() || !second.is_finite() {
+        return 0.0;
+    }
+    let denom = first.abs().max(1.0);
+    ((first - second) / denom).clamp(0.0, 1.0)
 }
 
 fn range_iou(left: ResultId, right: ResultId) -> f64 {

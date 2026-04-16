@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use sieve_core::{Index, SearchOptions};
+use sieve_core::{Index, QueryPromotedDense, SearchOptions};
 use tempfile::tempdir;
 
 #[test]
@@ -200,7 +200,16 @@ fn large_corpus_search_completes_without_ooming() {
 
     let reopened = Index::open_or_create(tmp.path()).unwrap();
     let results = reopened
-        .search("needle-that-does-not-exist", SearchOptions::default())
+        .search(
+            "needle-that-does-not-exist",
+            SearchOptions {
+                query_promoted_dense: QueryPromotedDense {
+                    max_promoted_chunks: 0,
+                    max_promoted_ms: 0,
+                },
+                ..Default::default()
+            },
+        )
         .unwrap();
 
     assert!(results.is_empty());

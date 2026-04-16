@@ -4,11 +4,11 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use sieve_core::fusion::{rrf_fuse, ResultId, ResultSource, ScoredResult};
+use sieve_core::fusion::{rrf_fuse, CoverageState, ResultId, ResultSource, ScoredResult};
 use sieve_core::model::{
     ModelManager, DEFAULT_CODE_SPARSE_MODEL_NAME, DEFAULT_MODEL_NAME, DEFAULT_SPARSE_MODEL_NAME,
 };
-use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMeta};
+use sieve_core::vectors::{snippet_from_byte_range, HotVectorStore, VectorMatch, VectorMeta};
 use sieve_core::{filter_stale_only_source_sets, Index, SearchOptions, SourceResultSet};
 use tempfile::tempdir;
 
@@ -261,6 +261,76 @@ fn test_vector_store_len_tracks_appends() {
 }
 
 #[test]
+fn test_collapse_vector_matches_prefers_best_chunk_per_file() {
+    let matches = vec![
+        VectorMatch {
+            wal_entry_id: 1,
+            chunk_id: 0,
+            source_path: "stable-a.rs".into(),
+            byte_range: (0, 8),
+            line_range: (1, 1),
+            score: 0.95,
+        },
+        VectorMatch {
+            wal_entry_id: 1,
+            chunk_id: 1,
+            source_path: "stable-a.rs".into(),
+            byte_range: (8, 16),
+            line_range: (2, 2),
+            score: 0.94,
+        },
+        VectorMatch {
+            wal_entry_id: 2,
+            chunk_id: 0,
+            source_path: "fresh.rs".into(),
+            byte_range: (0, 8),
+            line_range: (1, 1),
+            score: 0.93,
+        },
+    ];
+    let collapsed = sieve_core::collapse_vector_matches_by_file(matches, 5);
+    assert_eq!(collapsed.len(), 2);
+    assert_eq!(collapsed[0].source_path, "stable-a.rs");
+    assert_eq!(collapsed[1].source_path, "fresh.rs");
+}
+
+#[test]
+fn test_recency_bonus_promotes_latest_dense_hit() {
+    let results = vec![
+        ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: 10,
+                byte_start: 0,
+                byte_end: 8,
+            },
+            source_path: "stable.rs".into(),
+            line_range: (1, 1),
+            chunk_id: 0,
+            snippet: String::new(),
+            score: 0.6382,
+            source_layer: ResultSource::HotVector,
+            wal_entry_id: 10,
+        },
+        ScoredResult {
+            result_id: ResultId {
+                wal_entry_id: 11,
+                byte_start: 0,
+                byte_end: 8,
+            },
+            source_path: "fresh.rs".into(),
+            line_range: (1, 1),
+            chunk_id: 0,
+            snippet: String::new(),
+            score: 0.6288,
+            source_layer: ResultSource::HotVector,
+            wal_entry_id: 11,
+        },
+    ];
+    let boosted = sieve_core::apply_dense_recency_bonus(results, &[10, 11]);
+    assert_eq!(boosted[0].source_path, "fresh.rs");
+}
+
+#[test]
 fn test_dense_embedding_chunk_aware() {
     let dir = tempdir().unwrap();
     let mut store = HotVectorStore::open_or_create(dir.path(), 384).unwrap();
@@ -418,6 +488,7 @@ fn test_filter_stale_only_source_sets_keeps_sets_with_fresh_results() {
     let fresh_scan = SourceResultSet {
         source: ResultSource::RawScan,
         weight: 0.90,
+        coverage: CoverageState::Complete,
         results: vec![ScoredResult {
             result_id: ResultId {
                 wal_entry_id: 100,
@@ -436,6 +507,7 @@ fn test_filter_stale_only_source_sets_keeps_sets_with_fresh_results() {
     let stable_bm25 = SourceResultSet {
         source: ResultSource::SpladeBm25,
         weight: 1.10,
+        coverage: CoverageState::Partial(0.5),
         results: vec![ScoredResult {
             result_id: ResultId {
                 wal_entry_id: 200,

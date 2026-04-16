@@ -26,7 +26,7 @@ pub mod vectors;
 #[cfg(feature = "semantic")]
 pub mod window_score;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -47,7 +47,9 @@ use crate::aliases::AliasLexicon;
 use crate::chunk::{Chunk, SlidingChunker};
 #[cfg(feature = "semantic")]
 use crate::df_prior::static_df_frac;
-use crate::fusion::{weighted_rrf_fuse, ResultId, ResultSource, ScoredResult};
+use crate::fusion::{
+    coverage_aware_rrf_fuse, CoverageState, LayerResults, ResultId, ResultSource, ScoredResult,
+};
 #[cfg(feature = "semantic")]
 use crate::lexical::{load_indexed_entries, search_semantic_lexical};
 use crate::lexical::{search_lexical_with_fallback, LexicalMatch};
@@ -105,6 +107,21 @@ pub struct Index {
         Arc<RwLock<HashMap<crate::model::SparseRoute, Arc<crate::sparse::SpladeEncoder>>>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueryPromotedDense {
+    pub max_promoted_chunks: usize,
+    pub max_promoted_ms: u64,
+}
+
+impl Default for QueryPromotedDense {
+    fn default() -> Self {
+        Self {
+            max_promoted_chunks: 10,
+            max_promoted_ms: 300,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SearchOptions {
     pub top_k: Option<usize>,
@@ -122,6 +139,8 @@ pub struct SearchOptions {
     pub random_expansion: bool,
     #[cfg(feature = "semantic")]
     pub allow_delta_fallback: bool,
+    #[cfg(feature = "semantic")]
+    pub query_promoted_dense: QueryPromotedDense,
 }
 
 impl Default for SearchOptions {
@@ -142,6 +161,8 @@ impl Default for SearchOptions {
             random_expansion: false,
             #[cfg(feature = "semantic")]
             allow_delta_fallback: true,
+            #[cfg(feature = "semantic")]
+            query_promoted_dense: QueryPromotedDense::default(),
         }
     }
 }
@@ -226,6 +247,7 @@ pub struct SearchCoverage {
 pub struct SourceResultSet {
     pub source: ResultSource,
     pub weight: f64,
+    pub coverage: CoverageState,
     pub results: Vec<ScoredResult>,
 }
 
@@ -258,6 +280,31 @@ pub fn filter_stale_only_source_sets(
             }
         })
         .collect()
+}
+
+#[cfg(feature = "semantic")]
+fn fuse_source_sets(source_sets: &[SourceResultSet], k: f64) -> Vec<ScoredResult> {
+    let layers: Vec<LayerResults> = source_sets
+        .iter()
+        .map(|set| LayerResults {
+            source: set.source,
+            weight: set.weight,
+            results: collapse_scored_results_by_file(set.results.clone(), set.results.len()),
+            coverage: set.coverage,
+        })
+        .collect();
+    coverage_aware_rrf_fuse(layers, k)
+}
+
+#[cfg(feature = "semantic")]
+fn coverage_state_from_entry_counts(covered_entries: usize, total_entries: usize) -> CoverageState {
+    if total_entries == 0 || covered_entries == 0 {
+        CoverageState::Unavailable
+    } else if covered_entries >= total_entries {
+        CoverageState::Complete
+    } else {
+        CoverageState::Partial((covered_entries as f32 / total_entries as f32).clamp(0.0, 1.0))
+    }
 }
 
 #[cfg(feature = "semantic")]
@@ -631,22 +678,18 @@ impl Index {
                     SourceResultSet {
                         source: ResultSource::RawScan,
                         weight: 0.90,
+                        coverage: CoverageState::Complete,
                         results: scan.clone(),
                     },
                     SourceResultSet {
                         source: ResultSource::LexicalBm25,
                         weight: 1.00,
+                        coverage: CoverageState::Complete,
                         results: lexical_to_scored(lexical),
                     },
                 ];
                 let rrf_started = Instant::now();
-                let fused = weighted_rrf_fuse(
-                    source_sets
-                        .iter()
-                        .map(|set| (set.source, set.weight, set.results.clone()))
-                        .collect(),
-                    20.0,
-                );
+                let fused = fuse_source_sets(&source_sets, 20.0);
                 timings.rrf_fusion += rrf_started.elapsed();
                 (fused, source_sets)
             }
@@ -670,6 +713,7 @@ impl Index {
                         no_df_filter: options.no_df_filter,
                         random_expansion: options.random_expansion,
                         allow_delta_fallback: options.allow_delta_fallback,
+                        query_promoted_dense: options.query_promoted_dense.clone(),
                     },
                 )?;
                 if let Some(debug) = &semantic_outcome.debug {
@@ -680,6 +724,7 @@ impl Index {
                     source_sets.push(SourceResultSet {
                         source: ResultSource::RawScan,
                         weight: 0.90,
+                        coverage: CoverageState::Complete,
                         results: scan,
                     });
                 }
@@ -692,30 +737,16 @@ impl Index {
                         &active_ids,
                         top_k,
                         options.allow_delta_fallback,
+                        &options.query_promoted_dense,
+                        &source_sets,
                     )?;
                     timings.dense_knn += dense_started.elapsed();
-                    source_sets.extend(dense_sets.into_iter().map(|(source, weight, results)| {
-                        SourceResultSet {
-                            source,
-                            weight,
-                            results,
-                        }
-                    }));
+                    source_sets.extend(dense_sets);
                 }
                 let fresh_id_set: HashSet<u64> = snapshot.fresh_ids.iter().collect();
-                let source_sets = filter_stale_only_source_sets(
-                    source_sets,
-                    &fresh_id_set,
-                    options.allow_delta_fallback,
-                );
+                let source_sets = filter_stale_only_source_sets(source_sets, &fresh_id_set, false);
                 let rrf_started = Instant::now();
-                let fused = weighted_rrf_fuse(
-                    source_sets
-                        .iter()
-                        .map(|set| (set.source, set.weight, set.results.clone()))
-                        .collect(),
-                    20.0,
-                );
+                let fused = fuse_source_sets(&source_sets, 20.0);
                 timings.rrf_fusion += rrf_started.elapsed();
                 (fused, source_sets)
             }
@@ -738,11 +769,13 @@ impl Index {
                     SourceResultSet {
                         source: ResultSource::RawScan,
                         weight: 0.90,
+                        coverage: CoverageState::Complete,
                         results: scan,
                     },
                     SourceResultSet {
                         source: ResultSource::LexicalBm25,
                         weight: 1.00,
+                        coverage: CoverageState::Complete,
                         results: lexical_results,
                     },
                 ];
@@ -753,24 +786,14 @@ impl Index {
                     &active_ids,
                     top_k,
                     options.allow_delta_fallback,
+                    &options.query_promoted_dense,
+                    &source_sets,
                 )?;
                 timings.dense_knn += dense_started.elapsed();
-                source_sets.extend(dense_sets.into_iter().map(|(source, weight, results)| {
-                    SourceResultSet {
-                        source,
-                        weight,
-                        results,
-                    }
-                }));
+                source_sets.extend(dense_sets);
 
                 let rrf_started = Instant::now();
-                let fused = weighted_rrf_fuse(
-                    source_sets
-                        .iter()
-                        .map(|set| (set.source, set.weight, set.results.clone()))
-                        .collect(),
-                    20.0,
-                );
+                let fused = fuse_source_sets(&source_sets, 20.0);
                 timings.rrf_fusion += rrf_started.elapsed();
                 (fused, source_sets)
             }
@@ -1175,6 +1198,8 @@ impl Index {
             .cloned()
             .collect();
 
+        let total_active_entries = active_metadata.len();
+        let indexed_entry_count = snapshot.indexed_ids.iter().count();
         let mut source_sets = Vec::new();
         if !options.fresh_only && !snapshot.indexed_ids.is_empty() {
             let tantivy_started = Instant::now();
@@ -1186,6 +1211,10 @@ impl Index {
                 source_sets.push(SourceResultSet {
                     source: ResultSource::SpladeBm25,
                     weight: 1.10,
+                    coverage: coverage_state_from_entry_counts(
+                        indexed_entry_count,
+                        total_active_entries,
+                    ),
                     results,
                 });
             }
@@ -1206,6 +1235,7 @@ impl Index {
                 source_sets.push(SourceResultSet {
                     source: ResultSource::SemanticScan,
                     weight: 1.10,
+                    coverage: CoverageState::Complete,
                     results: semantic_results,
                 });
             }
@@ -1221,21 +1251,23 @@ impl Index {
                     source_sets.push(SourceResultSet {
                         source: ResultSource::EventReranked,
                         weight: 1.0,
+                        coverage: CoverageState::Complete,
                         results: reranked,
                     });
                 }
             }
         }
 
-        let fused = weighted_rrf_fuse(
-            source_sets
+        let fused = fuse_source_sets(&source_sets, 20.0);
+        let semantic_results = apply_dense_recency_bonus(
+            collapse_fused_results_by_file(fused),
+            &active_metadata
                 .iter()
-                .map(|set| (set.source, set.weight, set.results.clone()))
-                .collect(),
-            20.0,
+                .map(|entry| entry.wal_entry_id)
+                .collect::<Vec<_>>(),
         );
         Ok(SearchOutcome {
-            results: self.finalize_search_results(&query.normalized_query, fused, top_k),
+            results: self.finalize_search_results(&query.normalized_query, semantic_results, top_k),
             coverage: SearchCoverage {
                 total_chunks: 0,
                 embedded_chunks: 0,
@@ -1273,6 +1305,7 @@ impl Index {
                                 result.source_layer,
                                 ResultSource::HotVector
                                     | ResultSource::DeltaFallback
+                                    | ResultSource::QueryPromoted
                                     | ResultSource::SemanticScan
                             ) {
                                 snippet_from_byte_range(
@@ -1432,6 +1465,7 @@ impl Index {
     }
 
     #[cfg(feature = "semantic")]
+    #[allow(clippy::too_many_arguments)]
     fn semantic_dense_result_sets(
         &self,
         query: &str,
@@ -1439,7 +1473,9 @@ impl Index {
         active_ids: &HashSet<u64>,
         top_k: usize,
         allow_delta_fallback: bool,
-    ) -> Result<Vec<(ResultSource, f64, Vec<ScoredResult>)>> {
+        query_promoted: &QueryPromotedDense,
+        existing_source_sets: &[SourceResultSet],
+    ) -> Result<Vec<SourceResultSet>> {
         if !should_use_semantic(query) {
             return Ok(Vec::new());
         }
@@ -1448,20 +1484,35 @@ impl Index {
         };
 
         let query_vec = embedder.embed_query(query)?;
+        let total_active_entries = active_metadata.len();
         let mut embedded_set = roaring::RoaringTreemap::new();
         let mut semantic_sets = Vec::new();
         if self.root.join("vectors").exists() {
             let store =
                 HotVectorStore::open_or_create(&self.root.join("vectors"), embedder.dimension())?;
             embedded_set = store.embedded_set().clone();
-            let vector_matches =
-                filter_vector_matches(store.search_knn(&query_vec, top_k)?, active_ids);
+            let vector_matches = filter_vector_matches(
+                store.search_knn(&query_vec, top_k.saturating_mul(8).max(top_k))?,
+                active_ids,
+            );
+            let vector_matches = collapse_vector_matches_by_file(vector_matches, top_k);
             if !vector_matches.is_empty() {
-                semantic_sets.push((
-                    ResultSource::HotVector,
-                    1.00,
-                    vector_matches_to_scored(vector_matches),
-                ));
+                let covered_entries = embedded_set.iter().count();
+                let wal_order: Vec<u64> = active_metadata
+                    .iter()
+                    .map(|entry| entry.wal_entry_id)
+                    .collect();
+                let dense_results =
+                    apply_dense_recency_bonus(vector_matches_to_scored(vector_matches), &wal_order);
+                semantic_sets.push(SourceResultSet {
+                    source: ResultSource::HotVector,
+                    weight: 1.00,
+                    coverage: coverage_state_from_entry_counts(
+                        covered_entries,
+                        total_active_entries,
+                    ),
+                    results: dense_results,
+                });
             }
         }
         let delta_entries: Vec<WalMetaRecord> = active_metadata
@@ -1469,6 +1520,62 @@ impl Index {
             .filter(|entry| !embedded_set.contains(entry.wal_entry_id))
             .cloned()
             .collect();
+
+        if !delta_entries.is_empty() && query_promoted.max_promoted_chunks > 0 {
+            let delta_chunks: Vec<SourceChunk> = delta_entries
+                .iter()
+                .map(|entry| {
+                    self.read_entry_content(entry.wal_entry_id)
+                        .map(|content| chunk_entry(entry, &content))
+                })
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            let scan_seed_results: Vec<ScoredResult> = existing_source_sets
+                .iter()
+                .filter(|set| {
+                    matches!(
+                        set.source,
+                        ResultSource::RawScan | ResultSource::ScanFallback
+                    )
+                })
+                .flat_map(|set| set.results.clone())
+                .collect();
+            let promoted_chunks = select_query_promoted_chunks(
+                &scan_seed_results,
+                &delta_chunks,
+                &embedded_set,
+                query_promoted.max_promoted_chunks.max(1),
+                query_promoted,
+            );
+            let promoted_results = collapse_scored_results_by_file(
+                query_promoted_dense_results_with(
+                    &query_vec,
+                    &promoted_chunks,
+                    top_k.saturating_mul(8).max(top_k),
+                    query_promoted,
+                    |text| embedder.embed_one(text),
+                )?,
+                top_k,
+            );
+            if !promoted_results.is_empty() {
+                let promoted_entries: HashSet<u64> = promoted_chunks
+                    .iter()
+                    .map(|chunk| chunk.chunk.wal_entry_id)
+                    .collect();
+                semantic_sets.push(SourceResultSet {
+                    source: ResultSource::QueryPromoted,
+                    weight: 1.00,
+                    coverage: coverage_state_from_entry_counts(
+                        promoted_entries.len(),
+                        delta_entries.len(),
+                    ),
+                    results: promoted_results,
+                });
+            }
+        }
+
         if allow_delta_fallback && !delta_entries.is_empty() && delta_entries.len() <= 50 {
             let chunk_batches: Result<Vec<Vec<SourceChunk>>> = delta_entries
                 .iter()
@@ -1483,9 +1590,25 @@ impl Index {
                 .map(|chunk| chunk.chunk.text.as_str())
                 .collect();
             let vectors = embedder.embed_batch(&refs)?;
-            let delta = score_delta_vectors(&query_vec, &delta_chunks, &vectors, top_k);
+            let delta = collapse_scored_results_by_file(
+                score_delta_vectors(
+                    &query_vec,
+                    &delta_chunks,
+                    &vectors,
+                    top_k.saturating_mul(8).max(top_k),
+                ),
+                top_k,
+            );
             if !delta.is_empty() {
-                semantic_sets.push((ResultSource::DeltaFallback, 0.85, delta));
+                semantic_sets.push(SourceResultSet {
+                    source: ResultSource::DeltaFallback,
+                    weight: 0.85,
+                    coverage: coverage_state_from_entry_counts(
+                        delta_entries.len(),
+                        total_active_entries,
+                    ),
+                    results: delta,
+                });
             }
         }
         Ok(semantic_sets)
@@ -1838,6 +1961,35 @@ fn tag_scan_results_as_fallback(results: &mut [ScoredResult]) {
     }
 }
 
+fn collapse_fused_results_by_file(results: Vec<ScoredResult>) -> Vec<ScoredResult> {
+    let mut best: BTreeMap<String, ScoredResult> = BTreeMap::new();
+    for result in results {
+        match best.get_mut(&result.source_path) {
+            Some(existing) => {
+                existing.score += result.score;
+                if result.score > existing.score {
+                    let cumulative = existing.score;
+                    *existing = result;
+                    existing.score = cumulative;
+                }
+            }
+            None => {
+                best.insert(result.source_path.clone(), result);
+            }
+        }
+    }
+    let mut collapsed: Vec<ScoredResult> = best.into_values().collect();
+    collapsed.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    collapsed
+}
+
 fn push_line_result(
     slice: &[u8],
     match_offset: usize,
@@ -2089,7 +2241,7 @@ fn snippet_for_query(
     }
     if matches!(
         source_layer,
-        ResultSource::HotVector | ResultSource::DeltaFallback
+        ResultSource::HotVector | ResultSource::DeltaFallback | ResultSource::QueryPromoted
     ) {
         if let Some((line_no, snippet)) = semantic_snippet_for_query(&lines, query) {
             return ((line_no, line_no), snippet);
@@ -2315,6 +2467,14 @@ fn lexical_to_scored_with_source(
 
 #[cfg(feature = "semantic")]
 fn vector_matches_to_scored(matches: Vec<VectorMatch>) -> Vec<ScoredResult> {
+    vector_matches_to_scored_with_source(matches, ResultSource::HotVector)
+}
+
+#[cfg(feature = "semantic")]
+fn vector_matches_to_scored_with_source(
+    matches: Vec<VectorMatch>,
+    source: ResultSource,
+) -> Vec<ScoredResult> {
     matches
         .into_iter()
         .map(|entry| ScoredResult {
@@ -2328,7 +2488,7 @@ fn vector_matches_to_scored(matches: Vec<VectorMatch>) -> Vec<ScoredResult> {
             chunk_id: entry.chunk_id,
             snippet: String::new(),
             score: entry.score,
-            source_layer: ResultSource::HotVector,
+            source_layer: source,
             wal_entry_id: entry.wal_entry_id,
         })
         .collect()
@@ -2340,6 +2500,110 @@ fn filter_vector_matches(matches: Vec<VectorMatch>, active_ids: &HashSet<u64>) -
         .into_iter()
         .filter(|entry| active_ids.contains(&entry.wal_entry_id))
         .collect()
+}
+
+#[cfg(feature = "semantic")]
+pub fn collapse_vector_matches_by_file(
+    matches: Vec<VectorMatch>,
+    top_k_files: usize,
+) -> Vec<VectorMatch> {
+    let mut best: BTreeMap<String, (usize, VectorMatch)> = BTreeMap::new();
+    for (rank, entry) in matches.into_iter().enumerate() {
+        match best.get_mut(&entry.source_path) {
+            Some((existing_rank, existing)) => {
+                if entry.score > existing.score
+                    || (entry.score == existing.score && rank < *existing_rank)
+                {
+                    *existing_rank = rank;
+                    *existing = entry;
+                }
+            }
+            None => {
+                best.insert(entry.source_path.clone(), (rank, entry));
+            }
+        }
+    }
+    let mut collapsed: Vec<(usize, VectorMatch)> = best.into_values().collect();
+    collapsed.sort_by(|(left_rank, left), (right_rank, right)| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left_rank.cmp(right_rank))
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    let mut collapsed: Vec<VectorMatch> = collapsed.into_iter().map(|(_, entry)| entry).collect();
+    if collapsed.len() > top_k_files {
+        collapsed.truncate(top_k_files);
+    }
+    collapsed
+}
+
+#[cfg(feature = "semantic")]
+fn collapse_scored_results_by_file(
+    results: Vec<ScoredResult>,
+    top_k_files: usize,
+) -> Vec<ScoredResult> {
+    let mut best: BTreeMap<String, (usize, ScoredResult)> = BTreeMap::new();
+    for (rank, entry) in results.into_iter().enumerate() {
+        match best.get_mut(&entry.source_path) {
+            Some((existing_rank, existing)) => {
+                if entry.score > existing.score
+                    || (entry.score == existing.score && rank < *existing_rank)
+                {
+                    *existing_rank = rank;
+                    *existing = entry;
+                }
+            }
+            None => {
+                best.insert(entry.source_path.clone(), (rank, entry));
+            }
+        }
+    }
+    let mut collapsed: Vec<(usize, ScoredResult)> = best.into_values().collect();
+    collapsed.sort_by(|(left_rank, left), (right_rank, right)| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left_rank.cmp(right_rank))
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    let mut collapsed: Vec<ScoredResult> = collapsed.into_iter().map(|(_, entry)| entry).collect();
+    if collapsed.len() > top_k_files {
+        collapsed.truncate(top_k_files);
+    }
+    collapsed
+}
+
+#[cfg(feature = "semantic")]
+pub fn apply_dense_recency_bonus(
+    mut results: Vec<ScoredResult>,
+    wal_order: &[u64],
+) -> Vec<ScoredResult> {
+    let recent_count = wal_order.len().clamp(1, 8);
+    let recent: Vec<u64> = wal_order[wal_order.len().saturating_sub(recent_count)..]
+        .iter()
+        .rev()
+        .copied()
+        .collect();
+    for result in &mut results {
+        if let Some(position) = recent.iter().position(|wal| *wal == result.wal_entry_id) {
+            let recency_rank = recent_count.saturating_sub(position) as f64 / recent_count as f64;
+            result.score += 0.02 * recency_rank;
+        }
+    }
+    results.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.source_path.cmp(&right.source_path))
+            .then_with(|| left.line_range.0.cmp(&right.line_range.0))
+    });
+    results
 }
 
 #[cfg(feature = "semantic")]
@@ -2377,6 +2641,116 @@ fn score_delta_vectors(
         scored.truncate(top_k);
     }
     scored
+}
+
+#[cfg(feature = "semantic")]
+fn select_query_promoted_chunks(
+    scan_results: &[ScoredResult],
+    delta_chunks: &[SourceChunk],
+    embedded_set: &roaring::RoaringTreemap,
+    recent_wal_entries: usize,
+    config: &QueryPromotedDense,
+) -> Vec<SourceChunk> {
+    if config.max_promoted_chunks == 0 {
+        return Vec::new();
+    }
+    let mut scan_ranks: HashMap<u64, usize> = HashMap::new();
+    for (rank, result) in scan_results.iter().enumerate() {
+        if embedded_set.contains(result.wal_entry_id) {
+            continue;
+        }
+        scan_ranks
+            .entry(result.wal_entry_id)
+            .and_modify(|existing| *existing = (*existing).min(rank))
+            .or_insert(rank);
+    }
+    let mut recent_ids: Vec<u64> = delta_chunks
+        .iter()
+        .map(|chunk| chunk.chunk.wal_entry_id)
+        .filter(|wal_entry_id| !embedded_set.contains(*wal_entry_id))
+        .collect();
+    recent_ids.sort_unstable();
+    recent_ids.dedup();
+    recent_ids.reverse();
+    let recent_rank: HashMap<u64, usize> = recent_ids
+        .into_iter()
+        .take(recent_wal_entries.max(1))
+        .enumerate()
+        .map(|(index, wal_entry_id)| (wal_entry_id, index))
+        .collect();
+
+    let mut selected: Vec<SourceChunk> = delta_chunks
+        .iter()
+        .filter(|chunk| !embedded_set.contains(chunk.chunk.wal_entry_id))
+        .filter(|chunk| {
+            scan_ranks.contains_key(&chunk.chunk.wal_entry_id)
+                || recent_rank.contains_key(&chunk.chunk.wal_entry_id)
+        })
+        .cloned()
+        .collect();
+    selected.sort_by(|left, right| {
+        let left_scan = scan_ranks
+            .get(&left.chunk.wal_entry_id)
+            .copied()
+            .unwrap_or(usize::MAX);
+        let right_scan = scan_ranks
+            .get(&right.chunk.wal_entry_id)
+            .copied()
+            .unwrap_or(usize::MAX);
+        let left_recent = recent_rank
+            .get(&left.chunk.wal_entry_id)
+            .copied()
+            .unwrap_or(usize::MAX);
+        let right_recent = recent_rank
+            .get(&right.chunk.wal_entry_id)
+            .copied()
+            .unwrap_or(usize::MAX);
+        left_scan
+            .cmp(&right_scan)
+            .then_with(|| left_recent.cmp(&right_recent))
+            .then_with(|| right.chunk.wal_entry_id.cmp(&left.chunk.wal_entry_id))
+            .then_with(|| left.chunk.chunk_id.cmp(&right.chunk.chunk_id))
+    });
+    selected.truncate(config.max_promoted_chunks);
+    selected
+}
+
+#[cfg(feature = "semantic")]
+fn query_promoted_dense_results_with<E>(
+    query_vec: &[f32],
+    promoted_chunks: &[SourceChunk],
+    top_k: usize,
+    config: &QueryPromotedDense,
+    mut embed_one: E,
+) -> Result<Vec<ScoredResult>>
+where
+    E: FnMut(&str) -> Result<Vec<f32>>,
+{
+    if promoted_chunks.is_empty() || config.max_promoted_chunks == 0 || top_k == 0 {
+        return Ok(Vec::new());
+    }
+    let started = Instant::now();
+    let mut vectors = Vec::new();
+    let mut embedded_chunks = Vec::new();
+    for chunk in promoted_chunks.iter().take(config.max_promoted_chunks) {
+        if started.elapsed().as_millis() as u64 >= config.max_promoted_ms {
+            break;
+        }
+        let vector = embed_one(chunk.chunk.text.as_str())?;
+        if started.elapsed().as_millis() as u64 > config.max_promoted_ms {
+            break;
+        }
+        embedded_chunks.push(chunk.clone());
+        vectors.push(vector);
+    }
+    if embedded_chunks.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut scored = score_delta_vectors(query_vec, &embedded_chunks, &vectors, top_k);
+    for result in &mut scored {
+        result.source_layer = ResultSource::QueryPromoted;
+    }
+    Ok(scored)
 }
 
 #[cfg(feature = "semantic")]
@@ -2484,9 +2858,19 @@ pub fn default_sieve_data_dir() -> PathBuf {
 #[cfg(all(test, feature = "semantic"))]
 mod semantic_unit_tests {
     use std::collections::HashSet;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::{Duration, Instant};
 
-    use super::filter_vector_matches;
-    use crate::vectors::VectorMatch;
+    use roaring::RoaringTreemap;
+
+    use super::{
+        filter_vector_matches, query_promoted_dense_results_with, select_query_promoted_chunks,
+        QueryPromotedDense, SourceChunk,
+    };
+    use crate::chunk::Chunk;
+    use crate::fusion::{ResultId, ResultSource, ScoredResult};
+    use crate::vectors::{HotVectorStore, VectorMatch, VectorMeta};
+    use tempfile::tempdir;
 
     #[test]
     fn test_filter_vector_matches_excludes_inactive_wal_entries() {
@@ -2519,5 +2903,216 @@ mod semantic_unit_tests {
     fn test_should_use_semantic_accepts_code_queries_with_punctuation() {
         assert!(super::should_use_semantic("std::error::Error"));
         assert!(super::should_use_semantic("foo/bar_baz.rs"));
+    }
+
+    fn sample_source_chunk(
+        wal_entry_id: u64,
+        source_path: &str,
+        chunk_id: u32,
+        text: &str,
+    ) -> SourceChunk {
+        SourceChunk {
+            source_path: source_path.to_string(),
+            chunk: Chunk {
+                wal_entry_id,
+                chunk_id,
+                byte_start: chunk_id * 32,
+                byte_end: chunk_id * 32 + text.len() as u32,
+                line_range: (1, 1),
+                text: text.to_string(),
+            },
+        }
+    }
+
+    fn sample_scan_result(wal_entry_id: u64, source_path: &str, rank_score: f64) -> ScoredResult {
+        ScoredResult {
+            result_id: ResultId {
+                wal_entry_id,
+                byte_start: 0,
+                byte_end: 32,
+            },
+            source_path: source_path.to_string(),
+            line_range: (1, 1),
+            chunk_id: 0,
+            snippet: source_path.to_string(),
+            score: rank_score,
+            source_layer: ResultSource::RawScan,
+            wal_entry_id,
+        }
+    }
+
+    #[test]
+    fn test_query_promoted_embeds_scan_hits() {
+        let chunks = vec![
+            sample_source_chunk(1, "scan-hit.rs", 0, "scan-hit body"),
+            sample_source_chunk(2, "recent.rs", 0, "recent body"),
+        ];
+        let scan = vec![sample_scan_result(1, "scan-hit.rs", 2.0)];
+        let embedded = RoaringTreemap::new();
+        let selected = select_query_promoted_chunks(
+            &scan,
+            &chunks,
+            &embedded,
+            1,
+            &QueryPromotedDense {
+                max_promoted_chunks: 1,
+                max_promoted_ms: 300,
+            },
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].source_path, "scan-hit.rs");
+
+        let query_vec = vec![1.0, 0.0];
+        let results = query_promoted_dense_results_with(
+            &query_vec,
+            &selected,
+            5,
+            &QueryPromotedDense {
+                max_promoted_chunks: 1,
+                max_promoted_ms: 300,
+            },
+            |_| Ok(vec![1.0, 0.0]),
+        )
+        .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].source_path, "scan-hit.rs");
+        assert_eq!(results[0].source_layer, ResultSource::QueryPromoted);
+    }
+
+    #[test]
+    fn test_query_promoted_includes_recent_files() {
+        let chunks = vec![
+            sample_source_chunk(10, "older.rs", 0, "older body"),
+            sample_source_chunk(11, "fresh.rs", 0, "fresh body"),
+        ];
+        let embedded = RoaringTreemap::new();
+        let selected = select_query_promoted_chunks(
+            &[],
+            &chunks,
+            &embedded,
+            2,
+            &QueryPromotedDense {
+                max_promoted_chunks: 1,
+                max_promoted_ms: 300,
+            },
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].chunk.wal_entry_id, 11);
+    }
+
+    #[test]
+    fn test_query_promoted_respects_budget() {
+        let chunks = vec![
+            sample_source_chunk(1, "one.rs", 0, "one"),
+            sample_source_chunk(2, "two.rs", 0, "two"),
+            sample_source_chunk(3, "three.rs", 0, "three"),
+        ];
+        let selected = select_query_promoted_chunks(
+            &[],
+            &chunks,
+            &RoaringTreemap::new(),
+            3,
+            &QueryPromotedDense {
+                max_promoted_chunks: 2,
+                max_promoted_ms: 300,
+            },
+        );
+        assert_eq!(selected.len(), 2);
+    }
+
+    #[test]
+    fn test_query_promoted_respects_time_budget() {
+        let chunks = vec![
+            sample_source_chunk(1, "one.rs", 0, "one"),
+            sample_source_chunk(2, "two.rs", 0, "two"),
+            sample_source_chunk(3, "three.rs", 0, "three"),
+        ];
+        let counter = AtomicUsize::new(0);
+        let started = Instant::now();
+        let results = query_promoted_dense_results_with(
+            &[1.0, 0.0],
+            &chunks,
+            5,
+            &QueryPromotedDense {
+                max_promoted_chunks: 3,
+                max_promoted_ms: 100,
+            },
+            |_| {
+                std::thread::sleep(Duration::from_millis(60));
+                counter.fetch_add(1, Ordering::SeqCst);
+                Ok(vec![1.0, 0.0])
+            },
+        )
+        .unwrap();
+        assert!(started.elapsed() < Duration::from_millis(180));
+        assert!(counter.load(Ordering::SeqCst) <= 2);
+        assert!(results.len() <= 2);
+    }
+
+    #[test]
+    fn test_query_promoted_skips_when_all_embedded() {
+        let chunks = vec![sample_source_chunk(1, "done.rs", 0, "done")];
+        let embedded = RoaringTreemap::from([1_u64]);
+        let selected = select_query_promoted_chunks(
+            &[],
+            &chunks,
+            &embedded,
+            1,
+            &QueryPromotedDense {
+                max_promoted_chunks: 10,
+                max_promoted_ms: 300,
+            },
+        );
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn test_query_promoted_results_not_persisted() {
+        let dir = tempdir().unwrap();
+        let mut store = HotVectorStore::open_or_create(dir.path(), 2).unwrap();
+        store
+            .append(
+                &[vec![1.0, 0.0]],
+                &[VectorMeta {
+                    wal_entry_id: 1,
+                    chunk_id: 0,
+                    source_path: "persisted.rs".into(),
+                    byte_range: (0, 8),
+                    line_range: (1, 1),
+                }],
+            )
+            .unwrap();
+        let before = store.len();
+        let chunks = vec![sample_source_chunk(2, "ephemeral.rs", 0, "ephemeral")];
+        let _ = query_promoted_dense_results_with(
+            &[1.0, 0.0],
+            &chunks,
+            5,
+            &QueryPromotedDense {
+                max_promoted_chunks: 1,
+                max_promoted_ms: 300,
+            },
+            |_| Ok(vec![1.0, 0.0]),
+        )
+        .unwrap();
+        let reopened = HotVectorStore::open_or_create(dir.path(), 2).unwrap();
+        assert_eq!(before, reopened.len());
+    }
+
+    #[test]
+    fn test_query_promoted_tagged_correctly() {
+        let chunks = vec![sample_source_chunk(1, "promoted.rs", 0, "body")];
+        let results = query_promoted_dense_results_with(
+            &[1.0, 0.0],
+            &chunks,
+            5,
+            &QueryPromotedDense {
+                max_promoted_chunks: 1,
+                max_promoted_ms: 300,
+            },
+            |_| Ok(vec![1.0, 0.0]),
+        )
+        .unwrap();
+        assert_eq!(results[0].source_layer, ResultSource::QueryPromoted);
     }
 }
