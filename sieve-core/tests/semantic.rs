@@ -233,9 +233,9 @@ fn test_model_manager_is_cached_false_until_both_files_present() {
     let model_dir = manager.model_dir(DEFAULT_MODEL_NAME);
     fs::create_dir_all(&model_dir).unwrap();
     assert!(!manager.is_cached(DEFAULT_MODEL_NAME));
-    fs::write(model_dir.join("model.onnx"), b"onnx").unwrap();
+    fs::write(model_dir.join("query.onnx"), b"onnx").unwrap();
     assert!(!manager.is_cached(DEFAULT_MODEL_NAME));
-    fs::write(model_dir.join("tokenizer.json"), b"{}").unwrap();
+    fs::write(model_dir.join("doc.onnx"), b"onnx").unwrap();
     assert!(manager.is_cached(DEFAULT_MODEL_NAME));
 }
 
@@ -392,8 +392,8 @@ fn test_model_registry_stubbed() {
     let manager = ModelManager::new(dir.path());
     let model_dir = manager.model_dir(DEFAULT_MODEL_NAME);
     fs::create_dir_all(&model_dir).unwrap();
-    fs::write(model_dir.join("model.onnx"), b"onnx").unwrap();
-    fs::write(model_dir.join("tokenizer.json"), b"{}").unwrap();
+    fs::write(model_dir.join("query.onnx"), b"onnx").unwrap();
+    fs::write(model_dir.join("doc.onnx"), b"onnx").unwrap();
 
     let registry = manager.registry().unwrap();
     assert!(registry.dense.is_some());

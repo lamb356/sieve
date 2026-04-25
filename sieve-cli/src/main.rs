@@ -531,13 +531,13 @@ fn run_download_model(sparse: bool, splade_code: bool, all: bool) -> Result<()> 
     println!(
         "Dense model cached at {}",
         dense
-            .model_path
+            .query_model_path
             .parent()
-            .unwrap_or(dense.model_path.as_path())
+            .unwrap_or(dense.query_model_path.as_path())
             .display()
     );
-    println!("Model file: {}", dense.model_path.display());
-    println!("Tokenizer file: {}", dense.tokenizer_path.display());
+    println!("Query encoder file: {}", dense.query_model_path.display());
+    println!("Document encoder file: {}", dense.doc_model_path.display());
     if all {
         if manager.is_cached(DEFAULT_SPARSE_MODEL_NAME) {
             println!(

@@ -23,12 +23,17 @@ serde_json = { workspace = true }
 tantivy = "0.22"
 thiserror = { workspace = true }
 tracing = { workspace = true }
-ort = { version = "2.0.0-rc.12", optional = true }
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "download-binaries", "tls-rustls", "copy-dylibs", "api-24"], optional = true }
 tokenizers = { version = "0.20", optional = true }
-reqwest = { version = "0.12", features = ["blocking"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"], optional = true }
 indicatif = { version = "0.17", optional = true }
 ndarray = { version = "0.17", optional = true }
 bincode = { version = "1", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+criterion = "0.5"
+
+[[bench]]
+name = "encoder_bench"
+harness = false

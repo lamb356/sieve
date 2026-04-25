@@ -1044,8 +1044,13 @@ impl Index {
         let model_manager = self.model_manager();
         let model_dir = model_manager.model_dir(DEFAULT_MODEL_NAME);
         let model_cached = model_manager.is_cached(DEFAULT_MODEL_NAME);
+        let dimension = self
+            .load_embedder()?
+            .as_ref()
+            .map(|embedder| embedder.dimension())
+            .unwrap_or(384);
         let vectors = if self.root.join("vectors").exists() {
-            HotVectorStore::open_or_create(&self.root.join("vectors"), 384)?.len()
+            HotVectorStore::open_or_create(&self.root.join("vectors"), dimension)?.len()
         } else {
             0
         };
@@ -1053,7 +1058,7 @@ impl Index {
             model_cached,
             model_dir,
             vectors,
-            dimension: 384,
+            dimension,
             total_chunks,
         })
     }
@@ -1142,8 +1147,8 @@ impl Index {
         }
         let handle = manager.ensure_dense_model()?;
         let embedder = Arc::new(crate::embed::Embedder::load(
-            &handle.model_path,
-            &handle.tokenizer_path,
+            &handle.query_model_path,
+            &handle.doc_model_path,
         )?);
         *self
             .dense_embedder
@@ -1451,7 +1456,12 @@ impl Index {
             })
             .sum();
         let embedded_chunks = if self.root.join("vectors").exists() {
-            HotVectorStore::open_or_create(&self.root.join("vectors"), 384)?.len()
+            let dimension = self
+                .load_embedder()?
+                .as_ref()
+                .map(|embedder| embedder.dimension())
+                .unwrap_or(384);
+            HotVectorStore::open_or_create(&self.root.join("vectors"), dimension)?.len()
         } else {
             0
         };

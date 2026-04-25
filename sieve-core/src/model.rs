@@ -7,15 +7,13 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::{Result, SieveError};
 
-pub const DEFAULT_MODEL_NAME: &str = "bge-small-en-v1.5";
+pub const DEFAULT_MODEL_NAME: &str = "sieve-custom-byte-encoder";
 pub const DEFAULT_SPARSE_MODEL_NAME: &str = "splade";
 pub const DEFAULT_CODE_SPARSE_MODEL_NAME: &str = "splade-code";
-const DENSE_MODEL_URL: &str =
-    "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/onnx/model.onnx";
-const DENSE_TOKENIZER_URL: &str =
-    "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer.json";
-const MODEL_FILE_NAME: &str = "model.onnx";
-const TOKENIZER_FILE_NAME: &str = "tokenizer.json";
+const QUERY_MODEL_FILE_NAME: &str = "query.onnx";
+const DOC_MODEL_FILE_NAME: &str = "doc.onnx";
+const MODEL_FILE_NAME: &str = QUERY_MODEL_FILE_NAME;
+const TOKENIZER_FILE_NAME: &str = DOC_MODEL_FILE_NAME;
 const SPARSE_MODEL_FILE_NAME: &str = "splade.onnx";
 const SPARSE_MODEL_DATA_FILE_NAME: &str = "splade.onnx.data";
 const SPARSE_TOKENIZER_RELATIVE_PATH: &str = "splade-tokenizer/tokenizer.json";
@@ -39,8 +37,8 @@ pub struct ModelRegistry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseModelHandle {
-    pub model_path: PathBuf,
-    pub tokenizer_path: PathBuf,
+    pub query_model_path: PathBuf,
+    pub doc_model_path: PathBuf,
     pub name: String,
 }
 
@@ -109,19 +107,39 @@ impl ModelManager {
     }
 
     pub fn ensure_model(&self, model_name: &str) -> Result<PathBuf> {
+        if model_name == DEFAULT_MODEL_NAME {
+            let path = self.dense_query_model_path();
+            if path.is_file() {
+                return Ok(path);
+            }
+            return Err(SieveError::Message(format!(
+                "SIEVE query encoder ONNX not available at {}",
+                path.display()
+            )));
+        }
         self.ensure_artifact(model_name, MODEL_FILE_NAME, dense_model_url(model_name)?)
     }
 
     pub fn ensure_tokenizer(&self, model_name: &str) -> Result<PathBuf> {
+        if model_name == DEFAULT_MODEL_NAME {
+            let path = self.dense_doc_model_path();
+            if path.is_file() {
+                return Ok(path);
+            }
+            return Err(SieveError::Message(format!(
+                "SIEVE document encoder ONNX not available at {}",
+                path.display()
+            )));
+        }
         self.ensure_artifact(model_name, TOKENIZER_FILE_NAME, tokenizer_url(model_name)?)
     }
 
     pub fn ensure_dense_model(&self) -> Result<DenseModelHandle> {
-        let model_path = self.ensure_model(DEFAULT_MODEL_NAME)?;
-        let tokenizer_path = self.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
+        let query_model_path = self.ensure_model(DEFAULT_MODEL_NAME)?;
+        let doc_model_path = self.ensure_tokenizer(DEFAULT_MODEL_NAME)?;
         let handle = DenseModelHandle {
-            model_path,
-            tokenizer_path,
+            query_model_path,
+            doc_model_path,
             name: DEFAULT_MODEL_NAME.to_string(),
         };
         let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
@@ -186,9 +204,11 @@ impl ModelManager {
     pub fn registry(&self) -> Result<ModelRegistry> {
         let mut state = self.state.lock().map_err(|_| SieveError::LockPoisoned)?;
         if state.dense.is_none() && self.is_cached(DEFAULT_MODEL_NAME) {
+            let query_model_path = self.dense_query_model_path();
+            let doc_model_path = self.dense_doc_model_path();
             state.dense = Some(DenseModelHandle {
-                model_path: self.model_dir(DEFAULT_MODEL_NAME).join(MODEL_FILE_NAME),
-                tokenizer_path: self.model_dir(DEFAULT_MODEL_NAME).join(TOKENIZER_FILE_NAME),
+                query_model_path,
+                doc_model_path,
                 name: DEFAULT_MODEL_NAME.to_string(),
             });
         }
@@ -232,6 +252,9 @@ impl ModelManager {
                     && self.code_sparse_model_data_path().is_file()
                     && self.code_sparse_tokenizer_path().is_file()
             }
+            DEFAULT_MODEL_NAME => {
+                self.dense_query_model_path().is_file() && self.dense_doc_model_path().is_file()
+            }
             _ => {
                 self.model_dir(model_name).join(MODEL_FILE_NAME).is_file()
                     && self
@@ -243,7 +266,32 @@ impl ModelManager {
     }
 
     pub fn model_dir(&self, model_name: &str) -> PathBuf {
+        if model_name == DEFAULT_MODEL_NAME {
+            return self.encoder_dir();
+        }
         self.models_dir.join(model_name)
+    }
+
+    pub fn encoder_dir(&self) -> PathBuf {
+        if let Some(path) = std::env::var_os("SIEVE_ENCODER_DIR") {
+            return PathBuf::from(path);
+        }
+        self.models_dir
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join("encoder")
+    }
+
+    pub fn dense_query_model_path(&self) -> PathBuf {
+        std::env::var_os("SIEVE_ENCODER_QUERY_ONNX")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.encoder_dir().join(QUERY_MODEL_FILE_NAME))
+    }
+
+    pub fn dense_doc_model_path(&self) -> PathBuf {
+        std::env::var_os("SIEVE_ENCODER_DOC_ONNX")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.encoder_dir().join(DOC_MODEL_FILE_NAME))
     }
 
     pub fn sparse_model_path(&self) -> PathBuf {
@@ -349,7 +397,9 @@ fn io_invalid(message: impl Into<String>) -> SieveError {
 
 fn dense_model_url(model_name: &str) -> Result<&'static str> {
     match model_name {
-        DEFAULT_MODEL_NAME => Ok(DENSE_MODEL_URL),
+        DEFAULT_MODEL_NAME => Err(SieveError::Message(
+            "SIEVE dense encoder artifacts are local ONNX exports; expected ~/.sieve/encoder/query.onnx and doc.onnx".to_string(),
+        )),
         other => Err(SieveError::Message(format!(
             "unsupported model artifact lookup for {other}"
         ))),
@@ -358,7 +408,9 @@ fn dense_model_url(model_name: &str) -> Result<&'static str> {
 
 fn tokenizer_url(model_name: &str) -> Result<&'static str> {
     match model_name {
-        DEFAULT_MODEL_NAME => Ok(DENSE_TOKENIZER_URL),
+        DEFAULT_MODEL_NAME => Err(SieveError::Message(
+            "SIEVE dense encoder artifacts are local ONNX exports; expected ~/.sieve/encoder/query.onnx and doc.onnx".to_string(),
+        )),
         other => Err(SieveError::Message(format!(
             "unsupported tokenizer lookup for {other}"
         ))),
